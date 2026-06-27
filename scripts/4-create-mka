@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: 4-create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
+
+Create an MKA audiobook from chapter data, global tags, cover art, and audio
+files.
+
+Arguments:
+  CHAPTERS   Path to an mkvmerge simple chapter file, usually chapters.txt
+  TAGS       Path to a Matroska global tags XML file, usually tags.xml
+  IMAGE_DIR  Directory containing cover.jpg
+  AUDIO_DIR  Directory containing source audio files
+  OUTPUT     Output MKA file. Default: AUDIO_DIR/audiobook.mka
+
+The script scans only AUDIO_DIR, sorts audio files naturally, and appends them
+into one continuous audio track. The cover image is attached from
+IMAGE_DIR/cover.jpg with the attachment name cover.jpg.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if (( $# < 4 || $# > 5 )); then
+  usage >&2
+  exit 1
+fi
+
+chapters="$1"
+tags="$2"
+image_dir="$3"
+audio_dir="$4"
+output="${5:-$audio_dir/audiobook.mka}"
+cover="$image_dir/cover.jpg"
+
+if [[ ! -f "$chapters" ]]; then
+  echo "error: chapter file not found: $chapters" >&2
+  exit 1
+fi
+
+if [[ ! -f "$tags" ]]; then
+  echo "error: tags file not found: $tags" >&2
+  exit 1
+fi
+
+if [[ ! -d "$image_dir" ]]; then
+  echo "error: image directory not found: $image_dir" >&2
+  exit 1
+fi
+
+if [[ ! -f "$cover" ]]; then
+  echo "error: cover image not found: $cover" >&2
+  exit 1
+fi
+
+if [[ ! -d "$audio_dir" ]]; then
+  echo "error: audio directory not found: $audio_dir" >&2
+  exit 1
+fi
+
+if ! command -v mkvmerge >/dev/null 2>&1; then
+  echo "error: mkvmerge is required" >&2
+  exit 1
+fi
+
+# Scan only source audio files from the audiobook directory. Sidecar files such
+# as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
+mapfile -d '' audio_files < <(
+  find "$audio_dir" -maxdepth 1 -type f \
+    \( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
+    -o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
+    -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
+    -print0 | sort -zV
+)
+
+if (( ${#audio_files[@]} == 0 )); then
+  echo "error: no audio files found in $audio_dir" >&2
+  exit 1
+fi
+
+# mkvmerge appends files only when later inputs are prefixed with '+'. Without
+# the prefix each audio file becomes a separate track.
+mkvmerge_inputs=("${audio_files[0]}")
+for audio in "${audio_files[@]:1}"; do
+  mkvmerge_inputs+=("+$audio")
+done
+
+mkvmerge -o "$output" \
+  --chapters "$chapters" \
+  --global-tags "$tags" \
+  --attachment-mime-type image/jpeg \
+  --attachment-name cover.jpg \
+  --attach-file "$cover" \
+  "${mkvmerge_inputs[@]}"
+
+echo "created $output from ${#audio_files[@]} audio files"

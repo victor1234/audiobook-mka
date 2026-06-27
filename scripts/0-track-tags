@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: track-tags [DIRECTORY]
+
+Show a table with audio file names, track numbers, and title tags.
+
+Use this before creating an MKA audiobook to check that source audio tags are
+ordered and named correctly.
+
+Arguments:
+  DIRECTORY  Directory to inspect. Default: current working directory
+
+The script scans audio files in DIRECTORY and prints three columns:
+  FILE   File name
+  TRACK  Track value from metadata
+  TITLE  Title value from metadata
+
+When running through mise from a subdirectory, pass "$PWD" explicitly:
+  mise run track-tags "$PWD"
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+target_dir="${1:-.}"
+
+if [[ ! -d "$target_dir" ]]; then
+  echo "error: directory not found: $target_dir" >&2
+  exit 1
+fi
+
+for command in column exiftool jq; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "error: $command is required" >&2
+    exit 1
+  fi
+done
+
+# Scan only source audio files from the target directory. Sidecar files such as
+# cover.jpg, tags.xml, and chapters.txt are intentionally ignored for this
+# pre-MKA check.
+mapfile -d '' audio_files < <(
+  find "$target_dir" -maxdepth 1 -type f \
+    \( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
+    -o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
+    -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
+    -print0 | sort -zV
+)
+
+if (( ${#audio_files[@]} == 0 )); then
+  echo "error: no audio files found in $target_dir" >&2
+  exit 1
+fi
+
+# Read metadata as JSON, shape it into tab-separated rows, then align columns.
+exiftool -q -j -Track -Title "${audio_files[@]}" |
+  jq -r '
+    ["FILE", "TRACK", "TITLE"],
+    (.[] | [
+      (.SourceFile | split("/")[-1]),
+      (.Track // "" | tostring),
+      (.Title // "")
+    ])
+    | @tsv
+  ' |
+  column -t -s $'\t'

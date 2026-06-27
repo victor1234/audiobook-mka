@@ -1,0 +1,6 @@
+[tools]
+codex = "latest"
+github-cli = "latest"
+
+[env]
+_.path = 'scripts'
