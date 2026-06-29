@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: chapters.sh [OUTPUT]
+Usage: 2-chapters [OUTPUT]
 
 Create an mkvmerge simple chapter file from MP3 files in the current directory.
 

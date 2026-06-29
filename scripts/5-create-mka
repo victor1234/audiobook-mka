@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: 4-create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
+Usage: 5-create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
 
 Create an MKA audiobook from chapter data, global tags, cover art, and audio
 files.

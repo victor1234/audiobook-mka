@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: rename-track-id [OPTIONS] [DIRECTORY]
+Usage: 1-rename-track-id [OPTIONS] [DIRECTORY]
 
 Rename audio files to their track id from the Track metadata tag.
 
@@ -20,8 +20,8 @@ extension. If a Track value contains a total count such as 04/32, only the
 track id before the slash is used.
 
 Examples:
-  rename-track-id
-  rename-track-id --dry-run "$PWD"
+  1-rename-track-id
+  1-rename-track-id --dry-run "$PWD"
 EOF
 }
 

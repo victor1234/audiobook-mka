@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: images.sh [OUTPUT_DIR]
+Usage: 3-images [OUTPUT_DIR]
 
 Extract unique embedded images from audio files in the current directory.
 
