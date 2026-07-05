@@ -11,7 +11,8 @@ Arguments:
   OUTPUT  Chapter file to write. Default: chapters.txt
 
 The script scans only the current directory, sorts MP3 files naturally, and
-creates one chapter per file using cumulative durations from ffprobe.
+creates one chapter per file using cumulative durations from ffprobe. Chapter
+names are read from each MP3 file's Title metadata tag.
 EOF
 }
 
@@ -25,11 +26,12 @@ esac
 # Write to the first argument, or to chapters.txt by default.
 output="${1:-chapters.txt}"
 
-# ffprobe is required to read MP3 durations.
-if ! command -v ffprobe >/dev/null 2>&1; then
-  echo "error: ffprobe is required to read MP3 durations" >&2
-  exit 1
-fi
+for command in exiftool ffprobe; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "error: $command is required" >&2
+    exit 1
+  fi
+done
 
 # Scan only the current directory and sort naturally, so 2.mp3 comes before 10.mp3.
 mapfile -d '' mp3_files < <(find . -maxdepth 1 -type f -iname '*.mp3' -print0 | sort -zV)
@@ -47,6 +49,30 @@ duration_seconds() {
     -show_entries format=duration \
     -of default=noprint_wrappers=1:nokey=1 \
     "$file"
+}
+
+# Trim leading and trailing whitespace from a metadata value.
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+# Return the visible chapter title from the MP3 Title metadata tag.
+chapter_title() {
+  local file="$1"
+  local title
+
+  title="$(exiftool -q -q -s3 -Title "$file")"
+  title="$(trim "$title")"
+
+  if [[ -z "$title" ]]; then
+    echo "error: missing Title tag: ${file#./}" >&2
+    exit 1
+  fi
+
+  printf '%s' "$title"
 }
 
 # Convert fractional seconds to simple chapter timestamps: HH:MM:SS.mmm.
@@ -79,9 +105,8 @@ timestamp() {
       exit 1
     fi
 
-    # Use the filename without the .mp3 extension as the visible chapter title.
-    title="${file#./}"
-    title="${title%.[Mm][Pp]3}"
+    # Use the Title metadata tag as the visible chapter title.
+    title="$(chapter_title "$file")"
 
     printf 'CHAPTER%02d=%s\n' "$chapter_number" "$(timestamp "$elapsed")"
     printf 'CHAPTER%02dNAME=%s\n' "$chapter_number" "$title"
