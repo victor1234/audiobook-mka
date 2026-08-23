@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: 3-images [OUTPUT_DIR]
+Usage: audiobook-convert images [OUTPUT_DIR]
 
 Extract unique embedded images from audio files in the current directory.
 
@@ -16,9 +14,10 @@ cover is selected by largest pixel area, then largest file size.
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
@@ -66,7 +65,7 @@ done < <(
 		-print0
 )
 
-next_number() {
+stage::next_number() {
 	local number=1
 	local extension="$1"
 
@@ -79,7 +78,7 @@ next_number() {
 
 # ffprobe reports embedded JPEG covers as "mjpeg". Keep the original encoded
 # image bytes, but choose a normal filename extension for each supported codec.
-extension_for_codec() {
+stage::extension_for_codec() {
 	case "$1" in
 	bmp) printf '%s\n' 'bmp' ;;
 	gif) printf '%s\n' 'gif' ;;
@@ -91,7 +90,7 @@ extension_for_codec() {
 	esac
 }
 
-image_dimensions() {
+stage::image_dimensions() {
 	local image="$1"
 
 	ffprobe -v error \
@@ -101,14 +100,14 @@ image_dimensions() {
 		"$image"
 }
 
-promote_best_cover() {
+stage::promote_best_cover() {
 	local best_image=""
 	local best_area=-1
 	local best_size=-1
 	local image dimensions width height area size extension cover
 
 	while IFS= read -r -d '' image; do
-		dimensions="$(image_dimensions "$image" || true)"
+		dimensions="$(stage::image_dimensions "$image" || true)"
 		[[ "$dimensions" =~ ^[0-9]+x[0-9]+$ ]] || continue
 
 		width="${dimensions%x*}"
@@ -178,7 +177,7 @@ for audio in "${audio_files[@]}"; do
 				"$audio"
 		)"
 
-		if ! extension="$(extension_for_codec "$codec")"; then
+		if ! extension="$(stage::extension_for_codec "$codec")"; then
 			echo "warning: unsupported image codec '$codec' in ${audio#./}" >&2
 			continue
 		fi
@@ -200,7 +199,7 @@ for audio in "${audio_files[@]}"; do
 			continue
 		fi
 
-		number="$(next_number "$extension")"
+		number="$(stage::next_number "$extension")"
 		output="$output_dir/image-${number}.${extension}"
 		mv "$tmp_image" "$output"
 		seen_hashes["$hash"]=1
@@ -208,6 +207,8 @@ for audio in "${audio_files[@]}"; do
 	done
 done
 
-promote_best_cover
+stage::promote_best_cover
 
 echo "extracted $unique_count unique images to $output_dir ($duplicate_count duplicates skipped)"
+
+}

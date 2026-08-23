@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: track-tags [DIRECTORY]
+Usage: audiobook-convert track-tags [DIRECTORY]
 
 Show a table with audio file names, track numbers, and title tags.
 
@@ -19,13 +17,14 @@ The script scans audio files in DIRECTORY and prints three columns:
   TITLE  Title value from metadata
 
 When running through mise from a subdirectory, pass "$PWD" explicitly:
-  mise run track-tags "$PWD"
+  mise exec -- audiobook-convert track-tags "$PWD"
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
@@ -72,3 +71,5 @@ exiftool -q -j -Track -Title "${audio_files[@]}" |
     | @tsv
   ' |
 	column -t -s $'\t'
+
+}

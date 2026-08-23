@@ -1,18 +1,17 @@
 # Audiobooks
 
-A collection of Bash scripts for turning a directory of audio tracks into a
-single Matroska Audio (`.mka`) audiobook with chapters, global metadata, and
-cover art.
+A Bash command for turning a directory of audio tracks into a single Matroska
+Audio (`.mka`) audiobook with chapters, global metadata, and cover art.
 
-The scripts operate on one audiobook directory at a time. Source files are
+The processing stages operate on one audiobook directory at a time. Source files are
 sorted naturally so numbered tracks such as `2.mp3` come before `10.mp3`.
 
 ## Requirements
 
-The audiobook scripts require Bash and do not support execution with POSIX
+The audiobook command requires Bash and does not support execution with POSIX
 `sh` or other shells.
 
-The project uses [mise](https://mise.jdx.dev/) to add `scripts/` to `PATH` and
+The project uses [mise](https://mise.jdx.dev/) to add the repository root to `PATH` and
 to manage development tools, including the
 [prek](https://prek.j178.dev/) pre-commit runner. Install the tools declared in
 `mise.toml` with:
@@ -21,7 +20,7 @@ to manage development tools, including the
 mise install
 ```
 
-The audiobook scripts also require these system commands:
+The audiobook stages also require these system commands:
 
 - `exiftool`
 - `ffmpeg` and `ffprobe`
@@ -40,48 +39,81 @@ eval "$(mise activate bash)"
 
 Alternatively, prefix an individual command with `mise exec --`.
 
+## CLI
+
+Use the `audiobook-convert` entrypoint to run any processing stage:
+
+```bash
+audiobook-convert --help
+audiobook-convert track-tags .
+audiobook-convert rename-track-id --dry-run .
+audiobook-convert chapters chapters.txt
+```
+
+Each subcommand sources the corresponding numbered module and passes its
+arguments through unchanged. Stages remain independently runnable through their
+subcommands. Use `audiobook-convert help COMMAND` for a stage's
+detailed help, for example:
+
+```bash
+audiobook-convert help create-mka
+```
+
+The entrypoint provides these stage subcommands:
+
+| Subcommand | Sourced module | Stage |
+| ----------------- | -------------------- | ----- |
+| `track-tags` | `0-track-tags` | 0 |
+| `rename-track-id` | `1-rename-track-id` | 1 |
+| `chapters` | `2-chapters` | 2 |
+| `images` | `3-images` | 3 |
+| `audiobook-tags` | `4-audiobook-tags` | 4 |
+| `create-mka` | `5-create-mka` | 5 |
+
+The additional `show-tags` utility is available as `audiobook-convert show-tags`.
+
 ## Workflow
 
-Run the pipeline from the directory containing an audiobook's source tracks.
-The examples assume the repository is located at `/path/to/audiobooks`.
+Run each needed stage from the directory containing an audiobook's source
+tracks. No automatic pipeline is provided.
 
 1. Inspect the source track numbers and titles:
 
    ```bash
-   0-track-tags .
+   audiobook-convert track-tags .
    ```
 
 1. Preview and then apply filenames based on each file's `Track` tag:
 
    ```bash
-   1-rename-track-id --dry-run .
-   1-rename-track-id .
+   audiobook-convert rename-track-id --dry-run .
+   audiobook-convert rename-track-id .
    ```
 
 1. Create chapter entries from naturally sorted MP3 files. Chapter names come
    from the files' `Title` tags:
 
    ```bash
-   2-chapters chapters.txt
+   audiobook-convert chapters chapters.txt
    ```
 
 1. Extract embedded artwork, remove exact duplicates, and select the largest
    image as `images/cover.jpg`:
 
    ```bash
-   3-images images
+   audiobook-convert images images
    ```
 
 1. Enter the audiobook's global metadata interactively:
 
    ```bash
-   4-audiobook-tags tags.xml
+   audiobook-convert audiobook-tags tags.xml
    ```
 
 1. Merge the tracks, chapters, tags, and cover into an MKA file:
 
    ```bash
-   5-create-mka chapters.txt tags.xml images .
+   audiobook-convert create-mka chapters.txt tags.xml images .
    ```
 
    When no output path is supplied, the filename is generated from the
@@ -94,13 +126,13 @@ The examples assume the repository is located at `/path/to/audiobooks`.
    To choose the output path explicitly, pass it as the fifth argument:
 
    ```bash
-   5-create-mka chapters.txt tags.xml images . audiobook.mka
+   audiobook-convert create-mka chapters.txt tags.xml images . audiobook.mka
    ```
 
-Every script provides detailed command help:
+Every stage provides detailed command help:
 
 ```bash
-5-create-mka --help
+audiobook-convert create-mka --help
 ```
 
 ## Additional commands
@@ -108,26 +140,27 @@ Every script provides detailed command help:
 Inspect the raw ID3 metadata in a source audio file with:
 
 ```bash
-show-tags track.mp3
+audiobook-convert show-tags track.mp3
 ```
 
 When invoking a script through mise while working in another directory, pass
 the absolute directory where appropriate:
 
 ```bash
-mise exec -- 0-track-tags "$PWD"
+mise exec -- audiobook-convert track-tags "$PWD"
 ```
 
 ## Project structure
 
 ```text
 .
-├── mise.toml       # Development tools and scripts PATH configuration
-├── scripts/        # Audiobook preparation and MKA creation commands
-└── data/           # Local source material and generated audiobook data
+├── audiobook-convert      # Executable CLI entrypoint
+├── mise.toml               # Development tools and repository PATH configuration
+├── modules/                 # Non-executable sourced stage modules
+└── data/                   # Local source material and generated audiobook data
 ```
 
-Scripts process only files directly inside the selected audiobook directory;
+Stages process only files directly inside the selected audiobook directory;
 they do not scan nested directories recursively. Existing MKA outputs and
 sidecar files are excluded from source-audio discovery.
 
@@ -154,4 +187,4 @@ mise exec -- prek run shellcheck --all-files
 mise exec -- prek run mdformat --all-files
 ```
 
-Keep scripts documented with focused comments and a useful `--help` output.
+Keep modules documented with focused comments and useful command help output.

@@ -1,10 +1,7 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: show-tags AUDIO_FILE
+Usage: audiobook-convert show-tags AUDIO_FILE
 
 Show ID3 tag metadata for one audio file using exiftool.
 
@@ -13,9 +10,10 @@ Arguments:
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 "" | -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
@@ -23,3 +21,5 @@ esac
 # Show raw ID3 fields with group names, duplicate fields, stable sorting, and
 # short tag names. This is useful for inspecting source MP3 metadata.
 exiftool -G1 -a -sort -s -s -ID3:all "$1"
+
+}

@@ -4,12 +4,16 @@ repos:
     hooks:
       - id: shfmt
         args: [--language-dialect, bash]
+        files: ^(audiobook-convert|modules/)
+        types: [file]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
         args: [--shell, bash]
+        files: ^(audiobook-convert|modules/)
+        types: [file]
 
   - repo: https://github.com/executablebooks/mdformat
     rev: 1.0.0

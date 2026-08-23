@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: 5-create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
+Usage: audiobook-convert create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
 
 Create an MKA audiobook from chapter data, global tags, cover art, and audio
 files.
@@ -23,15 +21,16 @@ AUTHOR - TITLE[ {NARRATOR}].mka.
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
 
 if (($# < 4 || $# > 5)); then
-	usage >&2
+	stage::usage >&2
 	exit 1
 fi
 
@@ -75,7 +74,7 @@ for command in mkvmerge xmllint; do
 done
 
 # Trim leading and trailing whitespace from a metadata value.
-trim() {
+stage::trim() {
 	local value="$1"
 	value="${value#"${value%%[![:space:]]*}"}"
 	value="${value%"${value##*[![:space:]]}"}"
@@ -83,7 +82,7 @@ trim() {
 }
 
 # Read one SimpleTag value from the global Matroska tags XML.
-tag_value() {
+stage::tag_value() {
 	local name="$1"
 
 	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
@@ -92,7 +91,7 @@ tag_value() {
 
 # Keep generated filenames usable on common filesystems while preserving normal
 # punctuation, spaces, and non-ASCII book titles.
-filename_part() {
+stage::filename_part() {
 	local value="$1"
 	value="${value//\//-}"
 	value="${value//\\/ - }"
@@ -103,17 +102,17 @@ filename_part() {
 	value="${value//</(}"
 	value="${value//>/)}"
 	value="${value//|/-}"
-	value="$(trim "$value")"
+	value="$(stage::trim "$value")"
 	printf '%s' "$value"
 }
 
 # Build the default single-file audiobook name from global tags.
-default_output() {
+stage::default_output() {
 	local author title narrator name
 
-	author="$(filename_part "$(tag_value AUTHOR)")"
-	title="$(filename_part "$(tag_value TITLE)")"
-	narrator="$(filename_part "$(tag_value NARRATOR)")"
+	author="$(stage::filename_part "$(stage::tag_value AUTHOR)")"
+	title="$(stage::filename_part "$(stage::tag_value TITLE)")"
+	narrator="$(stage::filename_part "$(stage::tag_value NARRATOR)")"
 
 	if [[ -z "$author" ]]; then
 		echo "error: AUTHOR tag is required when OUTPUT is omitted" >&2
@@ -134,7 +133,7 @@ default_output() {
 }
 
 if [[ -z "$output" ]]; then
-	output="$(default_output)"
+	output="$(stage::default_output)"
 fi
 
 # Scan only source audio files from the audiobook directory. Sidecar files such
@@ -168,3 +167,5 @@ mkvmerge -o "$output" \
 	"${mkvmerge_inputs[@]}"
 
 echo "created $output from ${#audio_files[@]} audio files"
+
+}

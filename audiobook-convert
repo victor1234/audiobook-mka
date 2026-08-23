@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+	cat <<'EOF'
+Usage: audiobook-convert COMMAND [ARGUMENTS...]
+
+Run one audiobook processing stage or metadata utility.
+
+Commands:
+  track-tags       Inspect track numbers and titles (stage 0)
+  rename-track-id  Rename audio files from their Track tags (stage 1)
+  chapters         Create an mkvmerge chapter file (stage 2)
+  images           Extract embedded artwork and select a cover (stage 3)
+  audiobook-tags   Interactively create global tags XML (stage 4)
+  create-mka       Merge audio, chapters, tags, and cover art (stage 5)
+  show-tags        Inspect raw ID3 metadata for one audio file
+  help             Show this help, or help for a command
+
+Each command sources one stage module and invokes stage::run. Stages remain
+independently runnable; this command does not run an automatic pipeline.
+
+Examples:
+  audiobook-convert track-tags .
+  audiobook-convert rename-track-id --dry-run .
+  audiobook-convert chapters chapters.txt
+  audiobook-convert help create-mka
+EOF
+}
+
+# Resolve modules relative to this root-level entrypoint so dispatch works from
+# any audiobook directory, including when the repository root is on PATH.
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+case "${1:-}" in
+"" | -h | --help)
+	usage
+	exit 0
+	;;
+help)
+	if (($# == 1)); then
+		usage
+		exit 0
+	fi
+	if (($# > 2)); then
+		echo "error: help accepts at most one command" >&2
+		usage >&2
+		exit 1
+	fi
+	command_name="$2"
+	set -- "$command_name" --help
+	;;
+esac
+
+command_name="$1"
+shift
+
+case "$command_name" in
+track-tags) stage_module="0-track-tags" ;;
+rename-track-id) stage_module="1-rename-track-id" ;;
+chapters) stage_module="2-chapters" ;;
+images) stage_module="3-images" ;;
+audiobook-tags) stage_module="4-audiobook-tags" ;;
+create-mka) stage_module="5-create-mka" ;;
+show-tags) stage_module="show-tags" ;;
+*)
+	echo "error: unknown command: $command_name" >&2
+	usage >&2
+	exit 1
+	;;
+esac
+
+# Only one module is sourced per process, so every module can expose the same
+# small stage::run contract without leaking stage-specific implementation.
+# shellcheck source=/dev/null
+source "$project_dir/modules/$stage_module"
+stage::run "$@"

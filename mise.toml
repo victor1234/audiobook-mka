@@ -4,4 +4,4 @@ github-cli = "latest"
 prek = "latest"
 
 [env]
-_.path = 'scripts'
+_.path = '.'

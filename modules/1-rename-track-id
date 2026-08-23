@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: 1-rename-track-id [OPTIONS] [DIRECTORY]
+Usage: audiobook-convert rename-track-id [OPTIONS] [DIRECTORY]
 
 Rename audio files to their track id from the Track metadata tag.
 
@@ -20,11 +18,12 @@ extension. If a Track value contains a total count such as 04/32, only the
 track id before the slash is used.
 
 Examples:
-  1-rename-track-id
-  1-rename-track-id --dry-run "$PWD"
+  audiobook-convert rename-track-id
+  audiobook-convert rename-track-id --dry-run "$PWD"
 EOF
 }
 
+stage::run() {
 dry_run=0
 target_dir="."
 
@@ -35,7 +34,7 @@ while (($# > 0)); do
 		shift
 		;;
 	-h | --help)
-		usage
+		stage::usage
 		exit 0
 		;;
 	--)
@@ -44,7 +43,7 @@ while (($# > 0)); do
 		;;
 	-*)
 		echo "error: unknown option: $1" >&2
-		usage >&2
+		stage::usage >&2
 		exit 1
 		;;
 	*)
@@ -57,7 +56,7 @@ done
 
 if (($# > 0)); then
 	echo "error: too many arguments" >&2
-	usage >&2
+	stage::usage >&2
 	exit 1
 fi
 
@@ -87,7 +86,7 @@ if ((${#audio_files[@]} == 0)); then
 fi
 
 # Trim leading and trailing whitespace from a metadata value.
-trim() {
+stage::trim() {
 	local value="$1"
 	value="${value#"${value%%[![:space:]]*}"}"
 	value="${value%"${value##*[![:space:]]}"}"
@@ -96,14 +95,14 @@ trim() {
 
 # Convert the Track tag to a filename-safe id. Track totals such as 04/32 are
 # reduced to 04 because slash is a path separator.
-track_id() {
+stage::track_id() {
 	local file="$1"
 	local track
 
 	track="$(exiftool -q -q -s3 -Track "$file")"
-	track="$(trim "$track")"
+	track="$(stage::trim "$track")"
 	track="${track%%/*}"
-	track="$(trim "$track")"
+	track="$(stage::trim "$track")"
 
 	if [[ -z "$track" ]]; then
 		echo "error: missing Track tag: $file" >&2
@@ -132,7 +131,7 @@ for file in "${audio_files[@]}"; do
 	dir="$(dirname "$file")"
 	name="$(basename "$file")"
 	ext="${name##*.}"
-	id="$(track_id "$file")"
+	id="$(stage::track_id "$file")"
 	target="$dir/$id.$ext"
 
 	if [[ -n "${planned_targets[$target]:-}" && "${planned_targets[$target]}" != "$file" ]]; then
@@ -204,3 +203,5 @@ for index in "${!sources[@]}"; do
 done
 
 echo "renamed $rename_count files"
+
+}

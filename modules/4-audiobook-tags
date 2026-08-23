@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: 4-audiobook-tags [OUTPUT]
+Usage: audiobook-convert audiobook-tags [OUTPUT]
 
 Interactively create a Matroska global tags XML file for an audiobook.
 
@@ -16,9 +14,10 @@ Use the result later with mkvmerge --global-tags.
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
@@ -31,7 +30,7 @@ if ! command -v xmllint >/dev/null 2>&1; then
 	exit 1
 fi
 
-xml_escape() {
+stage::xml_escape() {
 	local value="$1"
 	value=${value//&/&amp;}
 	value=${value//</&lt;}
@@ -43,7 +42,7 @@ xml_escape() {
 
 # Read an existing global SimpleTag from the output XML so reruns can offer the
 # previous value as the interactive default.
-tag_value() {
+stage::tag_value() {
 	local name="$1"
 
 	[[ -s "$output" ]] || return 0
@@ -53,7 +52,7 @@ tag_value() {
 }
 
 # Prompt for one tag. Enter keeps the default; a single dash clears the value.
-ask_tag() {
+stage::ask_tag() {
 	local key="$1"
 	local label="$2"
 	local default="$3"
@@ -80,45 +79,45 @@ ask_tag() {
 
 # Matroska tags are represented as nested Simple elements. Empty fields are
 # skipped so the generated XML only contains tags the user chose to keep.
-write_simple_tag() {
+stage::write_simple_tag() {
 	local name="$1"
 	local value="$2"
 
 	[[ -n "$value" ]] || return 0
 
 	printf '%s\n' '    <Simple>'
-	printf '      <Name>%s</Name>\n' "$(xml_escape "$name")"
-	printf '      <String>%s</String>\n' "$(xml_escape "$value")"
+	printf '      <Name>%s</Name>\n' "$(stage::xml_escape "$name")"
+	printf '      <String>%s</String>\n' "$(stage::xml_escape "$value")"
 	printf '%s\n' '      <TagLanguageIETF>und</TagLanguageIETF>'
 	printf '%s\n' '    </Simple>'
 }
 
-default_title="$(tag_value TITLE)"
+default_title="$(stage::tag_value TITLE)"
 # For a new audiobook folder, the directory name is usually a useful title seed.
 [[ -n "$default_title" ]] || default_title="$(basename "$PWD")"
 
-default_subtitle="$(tag_value SUBTITLE)"
-default_author="$(tag_value AUTHOR)"
-default_narrator="$(tag_value NARRATOR)"
-default_publisher="$(tag_value PUBLISHER)"
-default_date="$(tag_value DATE_RELEASED)"
-default_language="$(tag_value LANGUAGE)"
-default_genre="$(tag_value GENRE)"
-default_description="$(tag_value DESCRIPTION)"
+default_subtitle="$(stage::tag_value SUBTITLE)"
+default_author="$(stage::tag_value AUTHOR)"
+default_narrator="$(stage::tag_value NARRATOR)"
+default_publisher="$(stage::tag_value PUBLISHER)"
+default_date="$(stage::tag_value DATE_RELEASED)"
+default_language="$(stage::tag_value LANGUAGE)"
+default_genre="$(stage::tag_value GENRE)"
+default_description="$(stage::tag_value DESCRIPTION)"
 
 echo "Creating Matroska audiobook tags: $output"
 echo "Press Enter to keep the default. Type - to clear a field."
 echo
 
-ask_tag title "Title" "$default_title"
-ask_tag subtitle "Subtitle" "$default_subtitle"
-ask_tag author "Author" "$default_author"
-ask_tag narrator "Narrator" "$default_narrator"
-ask_tag publisher "Publisher" "$default_publisher"
-ask_tag date_released "Release date" "$default_date"
-ask_tag language "Language" "$default_language"
-ask_tag genre "Genre" "$default_genre"
-ask_tag description "Description" "$default_description"
+stage::ask_tag title "Title" "$default_title"
+stage::ask_tag subtitle "Subtitle" "$default_subtitle"
+stage::ask_tag author "Author" "$default_author"
+stage::ask_tag narrator "Narrator" "$default_narrator"
+stage::ask_tag publisher "Publisher" "$default_publisher"
+stage::ask_tag date_released "Release date" "$default_date"
+stage::ask_tag language "Language" "$default_language"
+stage::ask_tag genre "Genre" "$default_genre"
+stage::ask_tag description "Description" "$default_description"
 
 echo
 echo "Tags to write:"
@@ -149,15 +148,15 @@ trap 'rm -f "$tmp_file"' EXIT
 	printf '%s\n' '<Tags>'
 	printf '%s\n' '  <Tag>'
 	printf '%s\n' '    <Targets />'
-	write_simple_tag TITLE "$title"
-	write_simple_tag SUBTITLE "$subtitle"
-	write_simple_tag AUTHOR "$author"
-	write_simple_tag NARRATOR "$narrator"
-	write_simple_tag PUBLISHER "$publisher"
-	write_simple_tag DATE_RELEASED "$date_released"
-	write_simple_tag LANGUAGE "$language"
-	write_simple_tag GENRE "$genre"
-	write_simple_tag DESCRIPTION "$description"
+	stage::write_simple_tag TITLE "$title"
+	stage::write_simple_tag SUBTITLE "$subtitle"
+	stage::write_simple_tag AUTHOR "$author"
+	stage::write_simple_tag NARRATOR "$narrator"
+	stage::write_simple_tag PUBLISHER "$publisher"
+	stage::write_simple_tag DATE_RELEASED "$date_released"
+	stage::write_simple_tag LANGUAGE "$language"
+	stage::write_simple_tag GENRE "$genre"
+	stage::write_simple_tag DESCRIPTION "$description"
 	printf '%s\n' '  </Tag>'
 	printf '%s\n' '</Tags>'
 } >"$tmp_file"
@@ -167,3 +166,5 @@ mv "$tmp_file" "$output"
 trap - EXIT
 
 echo "created $output"
+
+}

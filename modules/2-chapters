@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-usage() {
+# This module is sourced by ./audiobook-convert.
+stage::usage() {
 	cat <<'EOF'
-Usage: 2-chapters [OUTPUT]
+Usage: audiobook-convert chapters [OUTPUT]
 
 Create an mkvmerge simple chapter file from MP3 files in the current directory.
 
@@ -16,9 +14,10 @@ names are read from each MP3 file's Title metadata tag.
 EOF
 }
 
+stage::run() {
 case "${1:-}" in
 -h | --help)
-	usage
+	stage::usage
 	exit 0
 	;;
 esac
@@ -42,7 +41,7 @@ if ((${#mp3_files[@]} == 0)); then
 fi
 
 # Return the MP3 duration as seconds with a fractional part.
-duration_seconds() {
+stage::duration_seconds() {
 	local file="$1"
 
 	ffprobe -v error \
@@ -52,7 +51,7 @@ duration_seconds() {
 }
 
 # Trim leading and trailing whitespace from a metadata value.
-trim() {
+stage::trim() {
 	local value="$1"
 	value="${value#"${value%%[![:space:]]*}"}"
 	value="${value%"${value##*[![:space:]]}"}"
@@ -60,12 +59,12 @@ trim() {
 }
 
 # Return the visible chapter title from the MP3 Title metadata tag.
-chapter_title() {
+stage::chapter_title() {
 	local file="$1"
 	local title
 
 	title="$(exiftool -q -q -s3 -Title "$file")"
-	title="$(trim "$title")"
+	title="$(stage::trim "$title")"
 
 	if [[ -z "$title" ]]; then
 		echo "error: missing Title tag: ${file#./}" >&2
@@ -76,7 +75,7 @@ chapter_title() {
 }
 
 # Convert fractional seconds to simple chapter timestamps: HH:MM:SS.mmm.
-timestamp() {
+stage::timestamp() {
 	local seconds="$1"
 	awk -v seconds="$seconds" '
     BEGIN {
@@ -99,16 +98,16 @@ timestamp() {
 
 	for file in "${mp3_files[@]}"; do
 		# Each chapter starts at the cumulative elapsed time from previous MP3s.
-		duration="$(duration_seconds "$file")"
+		duration="$(stage::duration_seconds "$file")"
 		if [[ ! "$duration" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 			echo "error: could not read duration for ${file#./}" >&2
 			exit 1
 		fi
 
 		# Use the Title metadata tag as the visible chapter title.
-		title="$(chapter_title "$file")"
+		title="$(stage::chapter_title "$file")"
 
-		printf 'CHAPTER%02d=%s\n' "$chapter_number" "$(timestamp "$elapsed")"
+		printf 'CHAPTER%02d=%s\n' "$chapter_number" "$(stage::timestamp "$elapsed")"
 		printf 'CHAPTER%02dNAME=%s\n' "$chapter_number" "$title"
 
 		# Keep elapsed in seconds and format only when writing the chapter start.
@@ -118,3 +117,5 @@ timestamp() {
 } >"$output"
 
 echo "created $output with ${#mp3_files[@]} chapters"
+
+}
