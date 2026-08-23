@@ -9,6 +9,9 @@ sorted naturally so numbered tracks such as `2.mp3` come before `10.mp3`.
 
 ## Requirements
 
+The audiobook scripts require Bash and do not support execution with POSIX
+`sh` or other shells.
+
 The project uses [mise](https://mise.jdx.dev/) to add `scripts/` to `PATH` and
 to manage development tools, including the
 [prek](https://prek.j178.dev/) pre-commit runner. Install the tools declared in
