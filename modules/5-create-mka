@@ -22,16 +22,31 @@ EOF
 }
 
 stage::parse_arguments() {
-case "${1:-}" in
--h | --help)
-	stage::usage
-	exit 0
-	;;
-esac
+	while (($# > 0)); do
+		case "$1" in
+		-h | --help)
+			stage::usage
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			echo "error: unknown option: $1" >&2
+			stage::usage >&2
+			exit 2
+			;;
+		*)
+			break
+			;;
+		esac
+	done
 
 if (($# < 4 || $# > 5)); then
+	echo "error: create-mka requires four or five arguments" >&2
 	stage::usage >&2
-	exit 1
+	exit 2
 fi
 
 chapters="$1"

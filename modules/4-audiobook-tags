@@ -15,16 +15,40 @@ EOF
 }
 
 stage::parse_arguments() {
-case "${1:-}" in
--h | --help)
-	stage::usage
-	exit 0
-	;;
-esac
+	output="tags.xml"
 
-# Write Matroska global tags XML to the first argument, or to tags.xml by default.
-output="${1:-tags.xml}"
+	while (($# > 0)); do
+		case "$1" in
+		-h | --help)
+			stage::usage
+			exit 0
+			;;
+		--)
+			shift
+			if (($# > 0)); then
+				output="$1"
+				shift
+			fi
+			break
+			;;
+		-*)
+			echo "error: unknown option: $1" >&2
+			stage::usage >&2
+			exit 2
+			;;
+		*)
+			output="$1"
+			shift
+			break
+			;;
+		esac
+	done
 
+	if (($# > 0)); then
+		echo "error: too many arguments" >&2
+		stage::usage >&2
+		exit 2
+	fi
 }
 
 stage::xml_escape() {

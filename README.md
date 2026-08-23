@@ -50,10 +50,12 @@ audiobook-convert rename-track-id --dry-run .
 audiobook-convert chapters chapters.txt
 ```
 
-Each subcommand sources the corresponding numbered module and passes its
-arguments through unchanged. Stages remain independently runnable through their
-subcommands. Use `audiobook-convert help COMMAND` for a stage's
-detailed help, for example:
+Global options are parsed before the subcommand. Use `--` to stop global option
+parsing when needed. Each subcommand sources the corresponding numbered module
+and receives its remaining arguments unchanged; command-specific options stay
+with that module. Stages remain independently runnable through their
+subcommands. Use `audiobook-convert help COMMAND` for a stage's detailed help,
+for example:
 
 ```bash
 audiobook-convert help create-mka
@@ -69,6 +71,10 @@ The entrypoint provides these stage subcommands:
 | `images` | `3-images` | 3 |
 | `audiobook-tags` | `4-audiobook-tags` | 4 |
 | `create-mka` | `5-create-mka` | 5 |
+
+Successful commands and help requests exit with status 0. Invalid CLI usage,
+including a missing or unknown command or option, exits with status 2 after
+printing an error to standard error. Processing failures exit with status 1.
 
 The additional `show-tags` utility is available as `audiobook-convert show-tags`.
 
