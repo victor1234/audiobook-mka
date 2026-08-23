@@ -1,6 +1,7 @@
 [tools]
 codex = "latest"
 github-cli = "latest"
+prek = "latest"
 
 [env]
 _.path = 'scripts'

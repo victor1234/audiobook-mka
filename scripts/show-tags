@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: show-tags AUDIO_FILE
 
 Show ID3 tag metadata for one audio file using exiftool.
@@ -14,10 +14,10 @@ EOF
 }
 
 case "${1:-}" in
-  ""|-h|--help)
-    usage
-    exit 0
-    ;;
+"" | -h | --help)
+	usage
+	exit 0
+	;;
 esac
 
 # Show raw ID3 fields with group names, duplicate fields, stable sorting, and

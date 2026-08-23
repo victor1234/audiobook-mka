@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: 5-create-mka CHAPTERS TAGS IMAGE_DIR AUDIO_DIR [OUTPUT]
 
 Create an MKA audiobook from chapter data, global tags, cover art, and audio
@@ -24,15 +24,15 @@ EOF
 }
 
 case "${1:-}" in
-  -h|--help)
-    usage
-    exit 0
-    ;;
+-h | --help)
+	usage
+	exit 0
+	;;
 esac
 
-if (( $# < 4 || $# > 5 )); then
-  usage >&2
-  exit 1
+if (($# < 4 || $# > 5)); then
+	usage >&2
+	exit 1
 fi
 
 chapters="$1"
@@ -43,128 +43,128 @@ output="${5:-}"
 cover="$image_dir/cover.jpg"
 
 if [[ ! -f "$chapters" ]]; then
-  echo "error: chapter file not found: $chapters" >&2
-  exit 1
+	echo "error: chapter file not found: $chapters" >&2
+	exit 1
 fi
 
 if [[ ! -f "$tags" ]]; then
-  echo "error: tags file not found: $tags" >&2
-  exit 1
+	echo "error: tags file not found: $tags" >&2
+	exit 1
 fi
 
 if [[ ! -d "$image_dir" ]]; then
-  echo "error: image directory not found: $image_dir" >&2
-  exit 1
+	echo "error: image directory not found: $image_dir" >&2
+	exit 1
 fi
 
 if [[ ! -f "$cover" ]]; then
-  echo "error: cover image not found: $cover" >&2
-  exit 1
+	echo "error: cover image not found: $cover" >&2
+	exit 1
 fi
 
 if [[ ! -d "$audio_dir" ]]; then
-  echo "error: audio directory not found: $audio_dir" >&2
-  exit 1
+	echo "error: audio directory not found: $audio_dir" >&2
+	exit 1
 fi
 
 for command in mkvmerge xmllint; do
-  if ! command -v "$command" >/dev/null 2>&1; then
-    echo "error: $command is required" >&2
-    exit 1
-  fi
+	if ! command -v "$command" >/dev/null 2>&1; then
+		echo "error: $command is required" >&2
+		exit 1
+	fi
 done
 
 # Trim leading and trailing whitespace from a metadata value.
 trim() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
+	local value="$1"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "$value"
 }
 
 # Read one SimpleTag value from the global Matroska tags XML.
 tag_value() {
-  local name="$1"
+	local name="$1"
 
-  xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
-    "$tags" 2>/dev/null || true
+	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
+		"$tags" 2>/dev/null || true
 }
 
 # Keep generated filenames usable on common filesystems while preserving normal
 # punctuation, spaces, and non-ASCII book titles.
 filename_part() {
-  local value="$1"
-  value="${value//\//-}"
-  value="${value//\\/ - }"
-  value="${value//:/ - }"
-  value="${value//\*/}"
-  value="${value//\?/}"
-  value="${value//\"/\'}"
-  value="${value//</(}"
-  value="${value//>/)}"
-  value="${value//|/-}"
-  value="$(trim "$value")"
-  printf '%s' "$value"
+	local value="$1"
+	value="${value//\//-}"
+	value="${value//\\/ - }"
+	value="${value//:/ - }"
+	value="${value//\*/}"
+	value="${value//\?/}"
+	value="${value//\"/\'}"
+	value="${value//</(}"
+	value="${value//>/)}"
+	value="${value//|/-}"
+	value="$(trim "$value")"
+	printf '%s' "$value"
 }
 
 # Build the default single-file audiobook name from global tags.
 default_output() {
-  local author title narrator name
+	local author title narrator name
 
-  author="$(filename_part "$(tag_value AUTHOR)")"
-  title="$(filename_part "$(tag_value TITLE)")"
-  narrator="$(filename_part "$(tag_value NARRATOR)")"
+	author="$(filename_part "$(tag_value AUTHOR)")"
+	title="$(filename_part "$(tag_value TITLE)")"
+	narrator="$(filename_part "$(tag_value NARRATOR)")"
 
-  if [[ -z "$author" ]]; then
-    echo "error: AUTHOR tag is required when OUTPUT is omitted" >&2
-    exit 1
-  fi
-  if [[ -z "$title" ]]; then
-    echo "error: TITLE tag is required when OUTPUT is omitted" >&2
-    exit 1
-  fi
+	if [[ -z "$author" ]]; then
+		echo "error: AUTHOR tag is required when OUTPUT is omitted" >&2
+		exit 1
+	fi
+	if [[ -z "$title" ]]; then
+		echo "error: TITLE tag is required when OUTPUT is omitted" >&2
+		exit 1
+	fi
 
-  name="$author - $title"
+	name="$author - $title"
 
-  if [[ -n "$narrator" ]]; then
-    name="$name {$narrator}"
-  fi
+	if [[ -n "$narrator" ]]; then
+		name="$name {$narrator}"
+	fi
 
-  printf '%s/%s.mka' "$audio_dir" "$name"
+	printf '%s/%s.mka' "$audio_dir" "$name"
 }
 
 if [[ -z "$output" ]]; then
-  output="$(default_output)"
+	output="$(default_output)"
 fi
 
 # Scan only source audio files from the audiobook directory. Sidecar files such
 # as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
-  find "$audio_dir" -maxdepth 1 -type f \
-    \( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-    -o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-    -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-    -print0 | sort -zV
+	find "$audio_dir" -maxdepth 1 -type f \
+		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
+		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
+		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
+		-print0 | sort -zV
 )
 
-if (( ${#audio_files[@]} == 0 )); then
-  echo "error: no audio files found in $audio_dir" >&2
-  exit 1
+if ((${#audio_files[@]} == 0)); then
+	echo "error: no audio files found in $audio_dir" >&2
+	exit 1
 fi
 
 # mkvmerge appends files only when later inputs are prefixed with '+'. Without
 # the prefix each audio file becomes a separate track.
 mkvmerge_inputs=("${audio_files[0]}")
 for audio in "${audio_files[@]:1}"; do
-  mkvmerge_inputs+=("+$audio")
+	mkvmerge_inputs+=("+$audio")
 done
 
 mkvmerge -o "$output" \
-  --chapters "$chapters" \
-  --global-tags "$tags" \
-  --attachment-mime-type image/jpeg \
-  --attachment-name cover.jpg \
-  --attach-file "$cover" \
-  "${mkvmerge_inputs[@]}"
+	--chapters "$chapters" \
+	--global-tags "$tags" \
+	--attachment-mime-type image/jpeg \
+	--attachment-name cover.jpg \
+	--attach-file "$cover" \
+	"${mkvmerge_inputs[@]}"
 
 echo "created $output from ${#audio_files[@]} audio files"

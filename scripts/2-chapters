@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: 2-chapters [OUTPUT]
 
 Create an mkvmerge simple chapter file from MP3 files in the current directory.
@@ -17,68 +17,68 @@ EOF
 }
 
 case "${1:-}" in
-  -h|--help)
-    usage
-    exit 0
-    ;;
+-h | --help)
+	usage
+	exit 0
+	;;
 esac
 
 # Write to the first argument, or to chapters.txt by default.
 output="${1:-chapters.txt}"
 
 for command in exiftool ffprobe; do
-  if ! command -v "$command" >/dev/null 2>&1; then
-    echo "error: $command is required" >&2
-    exit 1
-  fi
+	if ! command -v "$command" >/dev/null 2>&1; then
+		echo "error: $command is required" >&2
+		exit 1
+	fi
 done
 
 # Scan only the current directory and sort naturally, so 2.mp3 comes before 10.mp3.
 mapfile -d '' mp3_files < <(find . -maxdepth 1 -type f -iname '*.mp3' -print0 | sort -zV)
 
-if (( ${#mp3_files[@]} == 0 )); then
-  echo "error: no MP3 files found in current directory" >&2
-  exit 1
+if ((${#mp3_files[@]} == 0)); then
+	echo "error: no MP3 files found in current directory" >&2
+	exit 1
 fi
 
 # Return the MP3 duration as seconds with a fractional part.
 duration_seconds() {
-  local file="$1"
+	local file="$1"
 
-  ffprobe -v error \
-    -show_entries format=duration \
-    -of default=noprint_wrappers=1:nokey=1 \
-    "$file"
+	ffprobe -v error \
+		-show_entries format=duration \
+		-of default=noprint_wrappers=1:nokey=1 \
+		"$file"
 }
 
 # Trim leading and trailing whitespace from a metadata value.
 trim() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
+	local value="$1"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "$value"
 }
 
 # Return the visible chapter title from the MP3 Title metadata tag.
 chapter_title() {
-  local file="$1"
-  local title
+	local file="$1"
+	local title
 
-  title="$(exiftool -q -q -s3 -Title "$file")"
-  title="$(trim "$title")"
+	title="$(exiftool -q -q -s3 -Title "$file")"
+	title="$(trim "$title")"
 
-  if [[ -z "$title" ]]; then
-    echo "error: missing Title tag: ${file#./}" >&2
-    exit 1
-  fi
+	if [[ -z "$title" ]]; then
+		echo "error: missing Title tag: ${file#./}" >&2
+		exit 1
+	fi
 
-  printf '%s' "$title"
+	printf '%s' "$title"
 }
 
 # Convert fractional seconds to simple chapter timestamps: HH:MM:SS.mmm.
 timestamp() {
-  local seconds="$1"
-  awk -v seconds="$seconds" '
+	local seconds="$1"
+	awk -v seconds="$seconds" '
     BEGIN {
       total_ms = int((seconds * 1000) + 0.5)
       hours = int(total_ms / 3600000)
@@ -94,27 +94,27 @@ timestamp() {
 
 # Emit mkvmerge simple chapters: CHAPTERxx=start time and CHAPTERxxNAME=title.
 {
-  elapsed="0"
-  chapter_number=1
+	elapsed="0"
+	chapter_number=1
 
-  for file in "${mp3_files[@]}"; do
-    # Each chapter starts at the cumulative elapsed time from previous MP3s.
-    duration="$(duration_seconds "$file")"
-    if [[ ! "$duration" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-      echo "error: could not read duration for ${file#./}" >&2
-      exit 1
-    fi
+	for file in "${mp3_files[@]}"; do
+		# Each chapter starts at the cumulative elapsed time from previous MP3s.
+		duration="$(duration_seconds "$file")"
+		if [[ ! "$duration" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+			echo "error: could not read duration for ${file#./}" >&2
+			exit 1
+		fi
 
-    # Use the Title metadata tag as the visible chapter title.
-    title="$(chapter_title "$file")"
+		# Use the Title metadata tag as the visible chapter title.
+		title="$(chapter_title "$file")"
 
-    printf 'CHAPTER%02d=%s\n' "$chapter_number" "$(timestamp "$elapsed")"
-    printf 'CHAPTER%02dNAME=%s\n' "$chapter_number" "$title"
+		printf 'CHAPTER%02d=%s\n' "$chapter_number" "$(timestamp "$elapsed")"
+		printf 'CHAPTER%02dNAME=%s\n' "$chapter_number" "$title"
 
-    # Keep elapsed in seconds and format only when writing the chapter start.
-    elapsed="$(awk -v a="$elapsed" -v b="$duration" 'BEGIN { printf "%.9f", a + b }')"
-    ((chapter_number++))
-  done
-} > "$output"
+		# Keep elapsed in seconds and format only when writing the chapter start.
+		elapsed="$(awk -v a="$elapsed" -v b="$duration" 'BEGIN { printf "%.9f", a + b }')"
+		((chapter_number++))
+	done
+} >"$output"
 
 echo "created $output with ${#mp3_files[@]} chapters"

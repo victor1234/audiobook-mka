@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: 4-audiobook-tags [OUTPUT]
 
 Interactively create a Matroska global tags XML file for an audiobook.
@@ -17,80 +17,80 @@ EOF
 }
 
 case "${1:-}" in
-  -h|--help)
-    usage
-    exit 0
-    ;;
+-h | --help)
+	usage
+	exit 0
+	;;
 esac
 
 # Write Matroska global tags XML to the first argument, or to tags.xml by default.
 output="${1:-tags.xml}"
 
 if ! command -v xmllint >/dev/null 2>&1; then
-  echo "error: xmllint is required" >&2
-  exit 1
+	echo "error: xmllint is required" >&2
+	exit 1
 fi
 
 xml_escape() {
-  local value="$1"
-  value=${value//&/&amp;}
-  value=${value//</&lt;}
-  value=${value//>/&gt;}
-  value=${value//\"/&quot;}
-  value=${value//\'/&apos;}
-  printf '%s' "$value"
+	local value="$1"
+	value=${value//&/&amp;}
+	value=${value//</&lt;}
+	value=${value//>/&gt;}
+	value=${value//\"/&quot;}
+	value=${value//\'/&apos;}
+	printf '%s' "$value"
 }
 
 # Read an existing global SimpleTag from the output XML so reruns can offer the
 # previous value as the interactive default.
 tag_value() {
-  local name="$1"
+	local name="$1"
 
-  [[ -s "$output" ]] || return 0
+	[[ -s "$output" ]] || return 0
 
-  xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
-    "$output" 2>/dev/null || true
+	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
+		"$output" 2>/dev/null || true
 }
 
 # Prompt for one tag. Enter keeps the default; a single dash clears the value.
 ask_tag() {
-  local key="$1"
-  local label="$2"
-  local default="$3"
-  local input
+	local key="$1"
+	local label="$2"
+	local default="$3"
+	local input
 
-  if [[ -n "$default" ]]; then
-    read -r -p "$label [$default]: " input
-  else
-    read -r -p "$label: " input
-  fi
+	if [[ -n "$default" ]]; then
+		read -r -p "$label [$default]: " input
+	else
+		read -r -p "$label: " input
+	fi
 
-  case "$input" in
-    "")
-      printf -v "$key" '%s' "$default"
-      ;;
-    -)
-      printf -v "$key" '%s' ""
-      ;;
-    *)
-      printf -v "$key" '%s' "$input"
-      ;;
-  esac
+	case "$input" in
+	"")
+		printf -v "$key" '%s' "$default"
+		;;
+	-)
+		printf -v "$key" '%s' ""
+		;;
+	*)
+		printf -v "$key" '%s' "$input"
+		;;
+	esac
 }
 
 # Matroska tags are represented as nested Simple elements. Empty fields are
 # skipped so the generated XML only contains tags the user chose to keep.
 write_simple_tag() {
-  local name="$1"
-  local value="$2"
+	local name="$1"
+	local value="$2"
 
-  [[ -n "$value" ]] || return 0
+	[[ -n "$value" ]] || return 0
 
-  printf '%s\n' '    <Simple>'
-  printf '      <Name>%s</Name>\n' "$(xml_escape "$name")"
-  printf '      <String>%s</String>\n' "$(xml_escape "$value")"
-  printf '%s\n' '      <TagLanguageIETF>und</TagLanguageIETF>'
-  printf '%s\n' '    </Simple>'
+	printf '%s\n' '    <Simple>'
+	printf '      <Name>%s</Name>\n' "$(xml_escape "$name")"
+	printf '      <String>%s</String>\n' "$(xml_escape "$value")"
+	printf '%s\n' '      <TagLanguageIETF>und</TagLanguageIETF>'
+	printf '%s\n' '    </Simple>'
 }
 
 default_title="$(tag_value TITLE)"
@@ -135,8 +135,8 @@ echo
 
 read -r -p "Write $output? [y/N]: " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-  echo "aborted"
-  exit 0
+	echo "aborted"
+	exit 0
 fi
 
 tmp_file="$(mktemp)"
@@ -144,23 +144,23 @@ trap 'rm -f "$tmp_file"' EXIT
 
 # Write to a temporary file first, validate it, then replace the output file.
 {
-  printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
-  printf '%s\n' '<!DOCTYPE Tags SYSTEM "matroskatags.dtd">'
-  printf '%s\n' '<Tags>'
-  printf '%s\n' '  <Tag>'
-  printf '%s\n' '    <Targets />'
-  write_simple_tag TITLE "$title"
-  write_simple_tag SUBTITLE "$subtitle"
-  write_simple_tag AUTHOR "$author"
-  write_simple_tag NARRATOR "$narrator"
-  write_simple_tag PUBLISHER "$publisher"
-  write_simple_tag DATE_RELEASED "$date_released"
-  write_simple_tag LANGUAGE "$language"
-  write_simple_tag GENRE "$genre"
-  write_simple_tag DESCRIPTION "$description"
-  printf '%s\n' '  </Tag>'
-  printf '%s\n' '</Tags>'
-} > "$tmp_file"
+	printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+	printf '%s\n' '<!DOCTYPE Tags SYSTEM "matroskatags.dtd">'
+	printf '%s\n' '<Tags>'
+	printf '%s\n' '  <Tag>'
+	printf '%s\n' '    <Targets />'
+	write_simple_tag TITLE "$title"
+	write_simple_tag SUBTITLE "$subtitle"
+	write_simple_tag AUTHOR "$author"
+	write_simple_tag NARRATOR "$narrator"
+	write_simple_tag PUBLISHER "$publisher"
+	write_simple_tag DATE_RELEASED "$date_released"
+	write_simple_tag LANGUAGE "$language"
+	write_simple_tag GENRE "$genre"
+	write_simple_tag DESCRIPTION "$description"
+	printf '%s\n' '  </Tag>'
+	printf '%s\n' '</Tags>'
+} >"$tmp_file"
 
 xmllint --noout "$tmp_file"
 mv "$tmp_file" "$output"

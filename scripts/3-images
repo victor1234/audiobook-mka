@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: 3-images [OUTPUT_DIR]
 
 Extract unique embedded images from audio files in the current directory.
@@ -17,35 +17,35 @@ EOF
 }
 
 case "${1:-}" in
-  -h|--help)
-    usage
-    exit 0
-    ;;
+-h | --help)
+	usage
+	exit 0
+	;;
 esac
 
 # Output directory can be overridden by the first argument.
 output_dir="${1:-images}"
 
 for command in ffprobe ffmpeg sha256sum; do
-  if ! command -v "$command" >/dev/null 2>&1; then
-    echo "error: $command is required" >&2
-    exit 1
-  fi
+	if ! command -v "$command" >/dev/null 2>&1; then
+		echo "error: $command is required" >&2
+		exit 1
+	fi
 done
 
 # Only scan the current directory. The script is intended to be run inside one
 # audiobook folder, not recursively across the whole library.
 mapfile -d '' audio_files < <(
-  find . -maxdepth 1 -type f \
-    \( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-    -o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-    -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-    -print0 | sort -zV
+	find . -maxdepth 1 -type f \
+		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
+		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
+		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
+		-print0 | sort -zV
 )
 
-if (( ${#audio_files[@]} == 0 )); then
-  echo "error: no audio files found in current directory" >&2
-  exit 1
+if ((${#audio_files[@]} == 0)); then
+	echo "error: no audio files found in current directory" >&2
+	exit 1
 fi
 
 mkdir -p "$output_dir"
@@ -57,99 +57,99 @@ declare -A seen_hashes=()
 # Seed the dedupe set from images already in the output directory. This makes
 # repeated runs idempotent and avoids creating image-002.jpg for the same cover.
 while IFS= read -r -d '' image; do
-  hash="$(sha256sum "$image" | awk '{print $1}')"
-  seen_hashes["$hash"]=1
+	hash="$(sha256sum "$image" | awk '{print $1}')"
+	seen_hashes["$hash"]=1
 done < <(
-  find "$output_dir" -maxdepth 1 -type f \
-    \( -iname '*.bmp' -o -iname '*.gif' -o -iname '*.jpg' -o -iname '*.jpeg' \
-    -o -iname '*.png' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
-    -print0
+	find "$output_dir" -maxdepth 1 -type f \
+		\( -iname '*.bmp' -o -iname '*.gif' -o -iname '*.jpg' -o -iname '*.jpeg' \
+		-o -iname '*.png' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
+		-print0
 )
 
 next_number() {
-  local number=1
-  local extension="$1"
+	local number=1
+	local extension="$1"
 
-  while [[ -e "$output_dir/image-$(printf '%03d' "$number").${extension}" ]]; do
-    ((number++))
-  done
+	while [[ -e "$output_dir/image-$(printf '%03d' "$number").${extension}" ]]; do
+		((number++))
+	done
 
-  printf '%03d' "$number"
+	printf '%03d' "$number"
 }
 
 # ffprobe reports embedded JPEG covers as "mjpeg". Keep the original encoded
 # image bytes, but choose a normal filename extension for each supported codec.
 extension_for_codec() {
-  case "$1" in
-    bmp) printf '%s\n' 'bmp' ;;
-    gif) printf '%s\n' 'gif' ;;
-    mjpeg) printf '%s\n' 'jpg' ;;
-    png) printf '%s\n' 'png' ;;
-    tiff) printf '%s\n' 'tif' ;;
-    webp) printf '%s\n' 'webp' ;;
-    *) return 1 ;;
-  esac
+	case "$1" in
+	bmp) printf '%s\n' 'bmp' ;;
+	gif) printf '%s\n' 'gif' ;;
+	mjpeg) printf '%s\n' 'jpg' ;;
+	png) printf '%s\n' 'png' ;;
+	tiff) printf '%s\n' 'tif' ;;
+	webp) printf '%s\n' 'webp' ;;
+	*) return 1 ;;
+	esac
 }
 
 image_dimensions() {
-  local image="$1"
+	local image="$1"
 
-  ffprobe -v error \
-    -select_streams v:0 \
-    -show_entries stream=width,height \
-    -of csv=s=x:p=0 \
-    "$image"
+	ffprobe -v error \
+		-select_streams v:0 \
+		-show_entries stream=width,height \
+		-of csv=s=x:p=0 \
+		"$image"
 }
 
 promote_best_cover() {
-  local best_image=""
-  local best_area=-1
-  local best_size=-1
-  local image dimensions width height area size extension cover
+	local best_image=""
+	local best_area=-1
+	local best_size=-1
+	local image dimensions width height area size extension cover
 
-  while IFS= read -r -d '' image; do
-    dimensions="$(image_dimensions "$image" || true)"
-    [[ "$dimensions" =~ ^[0-9]+x[0-9]+$ ]] || continue
+	while IFS= read -r -d '' image; do
+		dimensions="$(image_dimensions "$image" || true)"
+		[[ "$dimensions" =~ ^[0-9]+x[0-9]+$ ]] || continue
 
-    width="${dimensions%x*}"
-    height="${dimensions#*x}"
-    area=$((width * height))
-    size="$(stat -c '%s' "$image")"
+		width="${dimensions%x*}"
+		height="${dimensions#*x}"
+		area=$((width * height))
+		size="$(stat -c '%s' "$image")"
 
-    # Prefer the largest image by pixel area. If dimensions tie, keep the
-    # larger file because it is usually the less-compressed cover.
-    if (( area > best_area || (area == best_area && size > best_size) )); then
-      best_image="$image"
-      best_area="$area"
-      best_size="$size"
-    fi
-  done < <(
-    find "$output_dir" -maxdepth 1 -type f \
-      \( -iname '*.bmp' -o -iname '*.gif' -o -iname '*.jpg' -o -iname '*.jpeg' \
-      -o -iname '*.png' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
-      -print0
-  )
+		# Prefer the largest image by pixel area. If dimensions tie, keep the
+		# larger file because it is usually the less-compressed cover.
+		if ((area > best_area || (area == best_area && size > best_size))); then
+			best_image="$image"
+			best_area="$area"
+			best_size="$size"
+		fi
+	done < <(
+		find "$output_dir" -maxdepth 1 -type f \
+			\( -iname '*.bmp' -o -iname '*.gif' -o -iname '*.jpg' -o -iname '*.jpeg' \
+			-o -iname '*.png' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
+			-print0
+	)
 
-  if [[ -z "$best_image" ]]; then
-    echo "warning: no extracted image could be promoted to cover" >&2
-    return 0
-  fi
+	if [[ -z "$best_image" ]]; then
+		echo "warning: no extracted image could be promoted to cover" >&2
+		return 0
+	fi
 
-  extension="${best_image##*.}"
-  extension="${extension,,}"
-  cover="$output_dir/cover.jpg"
+	extension="${best_image##*.}"
+	extension="${extension,,}"
+	cover="$output_dir/cover.jpg"
 
-  # Keep JPEG covers byte-for-byte. Convert other image formats so downstream
-  # mkvmerge commands can always attach a predictable cover.jpg file.
-  if [[ "$extension" == "jpg" || "$extension" == "jpeg" ]]; then
-    if [[ "$best_image" != "$cover" ]]; then
-      cp "$best_image" "$cover"
-    fi
-  else
-    ffmpeg -v error -y -i "$best_image" -frames:v 1 "$cover"
-  fi
+	# Keep JPEG covers byte-for-byte. Convert other image formats so downstream
+	# mkvmerge commands can always attach a predictable cover.jpg file.
+	if [[ "$extension" == "jpg" || "$extension" == "jpeg" ]]; then
+		if [[ "$best_image" != "$cover" ]]; then
+			cp "$best_image" "$cover"
+		fi
+	else
+		ffmpeg -v error -y -i "$best_image" -frames:v 1 "$cover"
+	fi
 
-  echo "selected $cover from ${best_image#./}"
+	echo "selected $cover from ${best_image#./}"
 }
 
 extracted_count=0
@@ -157,55 +157,55 @@ unique_count=0
 duplicate_count=0
 
 for audio in "${audio_files[@]}"; do
-  # Embedded cover art is exposed by ffmpeg/ffprobe as video streams, even when
-  # the container is an audio-only file such as MP3, M4A, M4B, or FLAC.
-  mapfile -t stream_indexes < <(
-    ffprobe -v error \
-      -select_streams v \
-      -show_entries stream=index \
-      -of csv=p=0 \
-      "$audio" || true
-  )
+	# Embedded cover art is exposed by ffmpeg/ffprobe as video streams, even when
+	# the container is an audio-only file such as MP3, M4A, M4B, or FLAC.
+	mapfile -t stream_indexes < <(
+		ffprobe -v error \
+			-select_streams v \
+			-show_entries stream=index \
+			-of csv=p=0 \
+			"$audio" || true
+	)
 
-  for stream_index in "${stream_indexes[@]}"; do
-    [[ -n "$stream_index" ]] || continue
+	for stream_index in "${stream_indexes[@]}"; do
+		[[ -n "$stream_index" ]] || continue
 
-    codec="$(
-      ffprobe -v error \
-        -select_streams "$stream_index" \
-        -show_entries stream=codec_name \
-        -of default=noprint_wrappers=1:nokey=1 \
-        "$audio"
-    )"
+		codec="$(
+			ffprobe -v error \
+				-select_streams "$stream_index" \
+				-show_entries stream=codec_name \
+				-of default=noprint_wrappers=1:nokey=1 \
+				"$audio"
+		)"
 
-    if ! extension="$(extension_for_codec "$codec")"; then
-      echo "warning: unsupported image codec '$codec' in ${audio#./}" >&2
-      continue
-    fi
+		if ! extension="$(extension_for_codec "$codec")"; then
+			echo "warning: unsupported image codec '$codec' in ${audio#./}" >&2
+			continue
+		fi
 
-    tmp_image="$tmp_dir/extracted-${extracted_count}.${extension}"
-    # Stream copy preserves the embedded image as-is instead of re-encoding it.
-    if ! ffmpeg -v error -y -i "$audio" -map "0:${stream_index}" -frames:v 1 -c:v copy "$tmp_image"; then
-      echo "warning: could not extract image stream $stream_index from ${audio#./}" >&2
-      continue
-    fi
+		tmp_image="$tmp_dir/extracted-${extracted_count}.${extension}"
+		# Stream copy preserves the embedded image as-is instead of re-encoding it.
+		if ! ffmpeg -v error -y -i "$audio" -map "0:${stream_index}" -frames:v 1 -c:v copy "$tmp_image"; then
+			echo "warning: could not extract image stream $stream_index from ${audio#./}" >&2
+			continue
+		fi
 
-    ((++extracted_count))
-    hash="$(sha256sum "$tmp_image" | awk '{print $1}')"
+		((++extracted_count))
+		hash="$(sha256sum "$tmp_image" | awk '{print $1}')"
 
-    # Deduplicate by exact file content. Covers that look the same but have
-    # different metadata or encoding are intentionally kept as separate files.
-    if [[ -n "${seen_hashes[$hash]:-}" ]]; then
-      ((++duplicate_count))
-      continue
-    fi
+		# Deduplicate by exact file content. Covers that look the same but have
+		# different metadata or encoding are intentionally kept as separate files.
+		if [[ -n "${seen_hashes[$hash]:-}" ]]; then
+			((++duplicate_count))
+			continue
+		fi
 
-    number="$(next_number "$extension")"
-    output="$output_dir/image-${number}.${extension}"
-    mv "$tmp_image" "$output"
-    seen_hashes["$hash"]=1
-    ((++unique_count))
-  done
+		number="$(next_number "$extension")"
+		output="$output_dir/image-${number}.${extension}"
+		mv "$tmp_image" "$output"
+		seen_hashes["$hash"]=1
+		((++unique_count))
+	done
 done
 
 promote_best_cover

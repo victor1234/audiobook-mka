@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage: 1-rename-track-id [OPTIONS] [DIRECTORY]
 
 Rename audio files to their track id from the Track metadata tag.
@@ -28,94 +28,94 @@ EOF
 dry_run=0
 target_dir="."
 
-while (( $# > 0 )); do
-  case "$1" in
-    -n|--dry-run)
-      dry_run=1
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    --)
-      shift
-      break
-      ;;
-    -*)
-      echo "error: unknown option: $1" >&2
-      usage >&2
-      exit 1
-      ;;
-    *)
-      target_dir="$1"
-      shift
-      break
-      ;;
-  esac
+while (($# > 0)); do
+	case "$1" in
+	-n | --dry-run)
+		dry_run=1
+		shift
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	--)
+		shift
+		break
+		;;
+	-*)
+		echo "error: unknown option: $1" >&2
+		usage >&2
+		exit 1
+		;;
+	*)
+		target_dir="$1"
+		shift
+		break
+		;;
+	esac
 done
 
-if (( $# > 0 )); then
-  echo "error: too many arguments" >&2
-  usage >&2
-  exit 1
+if (($# > 0)); then
+	echo "error: too many arguments" >&2
+	usage >&2
+	exit 1
 fi
 
 if [[ ! -d "$target_dir" ]]; then
-  echo "error: directory not found: $target_dir" >&2
-  exit 1
+	echo "error: directory not found: $target_dir" >&2
+	exit 1
 fi
 
 if ! command -v exiftool >/dev/null 2>&1; then
-  echo "error: exiftool is required" >&2
-  exit 1
+	echo "error: exiftool is required" >&2
+	exit 1
 fi
 
 # Scan only source audio files from the target directory. Sidecar files such as
 # cover.jpg, tags.xml, chapters.txt, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
-  find "$target_dir" -maxdepth 1 -type f \
-    \( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-    -o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-    -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-    -print0 | sort -zV
+	find "$target_dir" -maxdepth 1 -type f \
+		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
+		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
+		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
+		-print0 | sort -zV
 )
 
-if (( ${#audio_files[@]} == 0 )); then
-  echo "error: no audio files found in $target_dir" >&2
-  exit 1
+if ((${#audio_files[@]} == 0)); then
+	echo "error: no audio files found in $target_dir" >&2
+	exit 1
 fi
 
 # Trim leading and trailing whitespace from a metadata value.
 trim() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
+	local value="$1"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "$value"
 }
 
 # Convert the Track tag to a filename-safe id. Track totals such as 04/32 are
 # reduced to 04 because slash is a path separator.
 track_id() {
-  local file="$1"
-  local track
+	local file="$1"
+	local track
 
-  track="$(exiftool -q -q -s3 -Track "$file")"
-  track="$(trim "$track")"
-  track="${track%%/*}"
-  track="$(trim "$track")"
+	track="$(exiftool -q -q -s3 -Track "$file")"
+	track="$(trim "$track")"
+	track="${track%%/*}"
+	track="$(trim "$track")"
 
-  if [[ -z "$track" ]]; then
-    echo "error: missing Track tag: $file" >&2
-    exit 1
-  fi
+	if [[ -z "$track" ]]; then
+		echo "error: missing Track tag: $file" >&2
+		exit 1
+	fi
 
-  if [[ "$track" == *"/"* ]]; then
-    echo "error: unsupported Track tag for $file: $track" >&2
-    exit 1
-  fi
+	if [[ "$track" == *"/"* ]]; then
+		echo "error: unsupported Track tag for $file: $track" >&2
+		exit 1
+	fi
 
-  printf '%s' "$track"
+	printf '%s' "$track"
 }
 
 declare -a sources=()
@@ -125,82 +125,82 @@ declare -A planned_targets=()
 declare -A source_paths=()
 
 for file in "${audio_files[@]}"; do
-  source_paths["$file"]=1
+	source_paths["$file"]=1
 done
 
 for file in "${audio_files[@]}"; do
-  dir="$(dirname "$file")"
-  name="$(basename "$file")"
-  ext="${name##*.}"
-  id="$(track_id "$file")"
-  target="$dir/$id.$ext"
+	dir="$(dirname "$file")"
+	name="$(basename "$file")"
+	ext="${name##*.}"
+	id="$(track_id "$file")"
+	target="$dir/$id.$ext"
 
-  if [[ -n "${planned_targets[$target]:-}" && "${planned_targets[$target]}" != "$file" ]]; then
-    echo "error: duplicate target name: $target" >&2
-    echo "  from: ${planned_targets[$target]}" >&2
-    echo "  from: $file" >&2
-    exit 1
-  fi
+	if [[ -n "${planned_targets[$target]:-}" && "${planned_targets[$target]}" != "$file" ]]; then
+		echo "error: duplicate target name: $target" >&2
+		echo "  from: ${planned_targets[$target]}" >&2
+		echo "  from: $file" >&2
+		exit 1
+	fi
 
-  planned_targets["$target"]="$file"
-  sources+=("$file")
-  targets+=("$target")
+	planned_targets["$target"]="$file"
+	sources+=("$file")
+	targets+=("$target")
 done
 
 for target in "${targets[@]}"; do
-  if [[ -e "$target" && -z "${source_paths[$target]:-}" ]]; then
-    echo "error: target already exists: $target" >&2
-    exit 1
-  fi
+	if [[ -e "$target" && -z "${source_paths[$target]:-}" ]]; then
+		echo "error: target already exists: $target" >&2
+		exit 1
+	fi
 done
 
 rename_count=0
 for index in "${!sources[@]}"; do
-  source="${sources[$index]}"
-  target="${targets[$index]}"
+	source="${sources[$index]}"
+	target="${targets[$index]}"
 
-  if [[ "$source" == "$target" ]]; then
-    continue
-  fi
+	if [[ "$source" == "$target" ]]; then
+		continue
+	fi
 
-  ((rename_count += 1))
-  if (( dry_run )); then
-    printf 'would rename: %s -> %s\n' "$source" "$target"
-  fi
+	((rename_count += 1))
+	if ((dry_run)); then
+		printf 'would rename: %s -> %s\n' "$source" "$target"
+	fi
 done
 
-if (( rename_count == 0 )); then
-  echo "nothing to rename"
-  exit 0
+if ((rename_count == 0)); then
+	echo "nothing to rename"
+	exit 0
 fi
 
-if (( dry_run )); then
-  echo "planned $rename_count renames"
-  exit 0
+if ((dry_run)); then
+	echo "planned $rename_count renames"
+	exit 0
 fi
 
 for index in "${!sources[@]}"; do
-  source="${sources[$index]}"
-  target="${targets[$index]}"
+	source="${sources[$index]}"
+	target="${targets[$index]}"
 
-  if [[ "$source" == "$target" ]]; then
-    temps+=("")
-    continue
-  fi
+	if [[ "$source" == "$target" ]]; then
+		temps+=("")
+		continue
+	fi
 
-  temp="$(mktemp -p "$(dirname "$source")" ".rename-track-id.XXXXXX")"
-  rm -f "$temp"
-  mv "$source" "$temp"
-  temps+=("$temp")
+	temp="$(mktemp -p "$(dirname "$source")" ".rename-track-id.XXXXXX")"
+	rm -f "$temp"
+	mv "$source" "$temp"
+	temps+=("$temp")
 done
 
 for index in "${!sources[@]}"; do
-  temp="${temps[$index]}"
-  target="${targets[$index]}"
+	temp="${temps[$index]}"
+	target="${targets[$index]}"
 
-  [[ -n "$temp" ]] || continue
-  mv "$temp" "$target"
-  printf 'renamed: %s -> %s\n' "${sources[$index]}" "$target"
+	[[ -n "$temp" ]] || continue
+	mv "$temp" "$target"
+	printf 'renamed: %s -> %s\n' "${sources[$index]}" "$target"
 done
 
 echo "renamed $rename_count files"
