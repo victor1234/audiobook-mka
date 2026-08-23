@@ -3,7 +3,7 @@ stage::usage() {
 	cat <<'EOF'
 Usage: audiobook-convert images [OUTPUT_DIR]
 
-Extract unique embedded images from audio files in the current directory.
+Extract unique embedded images from audio files beneath the current directory.
 
 Arguments:
   OUTPUT_DIR  Directory for extracted unique images. Default: images
@@ -52,8 +52,7 @@ stage::parse_arguments() {
 }
 
 stage::find_audio_files() {
-# Only scan the current directory. The script is intended to be run inside one
-# audiobook folder, not recursively across the whole library.
+# Recursively scan one audiobook tree for embedded artwork.
 mapfile -d '' audio_files < <(
 	common::find_audio_files .
 )

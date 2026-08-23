@@ -11,7 +11,7 @@ ordered and named correctly.
 Arguments:
   DIRECTORY  Directory to inspect. Default: current working directory
 
-The script scans audio files in DIRECTORY and prints three columns:
+The script recursively scans audio files in DIRECTORY and prints three columns:
   FILE   File name
   TRACK  Track value from metadata
   TITLE  Title value from metadata
@@ -82,12 +82,23 @@ fi
 }
 
 stage::print_track_tags() {
+local display_root="${target_dir%/}"
+[[ -n "$display_root" ]] || display_root="/"
+
 # Read metadata as JSON, shape it into tab-separated rows, then align columns.
 exiftool -q -j -Track -Title "${audio_files[@]}" |
-	jq -r '
+	jq -r --arg root "$display_root" '
+    def relative_source:
+      if $root == "." then
+        .SourceFile | ltrimstr("./")
+      elif $root == "/" then
+        .SourceFile | ltrimstr("/")
+      else
+        .SourceFile | ltrimstr($root + "/")
+      end;
     ["FILE", "TRACK", "TITLE"],
     (.[] | [
-      (.SourceFile | split("/")[-1]),
+      relative_source,
       (.Track // "" | tostring),
       (.Title // "")
     ])

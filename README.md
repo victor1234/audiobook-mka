@@ -3,8 +3,9 @@
 A Bash command for turning a directory of audio tracks into a single Matroska
 Audio (`.mka`) audiobook with chapters, global metadata, and cover art.
 
-The processing stages operate on one audiobook directory at a time. Source files are
-sorted naturally so numbered tracks such as `2.mp3` come before `10.mp3`.
+The processing stages operate on one audiobook directory tree at a time. Source
+paths are sorted naturally so numbered directories and tracks retain their
+intended playback order.
 
 ## Requirements
 
@@ -96,8 +97,9 @@ tracks. No automatic pipeline is provided.
    audiobook-convert rename-track-id .
    ```
 
-1. Create chapter entries from naturally sorted MP3 files. Chapter names come
-   from the files' `Title` tags:
+1. Create chapter entries from recursively discovered, naturally sorted MP3
+   files. Chapter names come from the files' `Title` tags; every MP3 becomes one
+   chapter even when the files are arranged in nested directories:
 
    ```bash
    audiobook-convert chapters chapters.txt
@@ -170,9 +172,9 @@ mise exec -- audiobook-convert track-tags "$PWD"
 modules. Argument handling, validation, transformations, and output behavior
 remain in the module for the stage that owns them.
 
-Stages process only files directly inside the selected audiobook directory;
-they do not scan nested directories recursively. Existing MKA outputs and
-sidecar files are excluded from source-audio discovery.
+Stages recursively process files beneath the selected audiobook directory.
+Existing MKA outputs and sidecar files are excluded from source-audio
+discovery, and directory symlinks are not followed.
 
 ## Development
 

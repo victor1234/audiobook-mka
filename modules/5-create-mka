@@ -10,11 +10,11 @@ Arguments:
   CHAPTERS   Path to an mkvmerge simple chapter file, usually chapters.txt
   TAGS       Path to a Matroska global tags XML file, usually tags.xml
   IMAGE_DIR  Directory containing cover.jpg
-  AUDIO_DIR  Directory containing source audio files
+  AUDIO_DIR  Directory tree containing source audio files
   OUTPUT     Output MKA file. Default: AUDIO_DIR/AUTHOR - TITLE[ {NARRATOR}].mka
 
-The script scans only AUDIO_DIR, sorts audio files naturally, and appends them
-into one continuous audio track. The cover image is attached from
+The script recursively scans AUDIO_DIR, sorts audio paths naturally, and appends
+them into one continuous audio track. The cover image is attached from
 IMAGE_DIR/cover.jpg with the attachment name cover.jpg. If OUTPUT is omitted,
 the output filename is built from TAGS using the pattern
 AUTHOR - TITLE[ {NARRATOR}].mka.
@@ -137,8 +137,8 @@ fi
 }
 
 stage::find_audio_files() {
-# Scan only source audio files from the audiobook directory. Sidecar files such
-# as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
+# Recursively scan source audio files from the audiobook directory. Sidecars
+# such as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
 	common::find_audio_files "$audio_dir"
 )

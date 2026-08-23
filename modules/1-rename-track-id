@@ -6,16 +6,16 @@ Usage: audiobook-convert rename-track-id [OPTIONS] [DIRECTORY]
 Rename audio files to their track id from the Track metadata tag.
 
 Arguments:
-  DIRECTORY  Directory containing audio files. Default: current working directory
+  DIRECTORY  Directory tree containing audio files. Default: current working directory
 
 Options:
   -n, --dry-run  Print planned renames without changing files
   -h, --help     Show this help output
 
-The script scans audio files in DIRECTORY, reads each file's Track tag with
-exiftool, and renames the file to TRACK_ID.EXT while preserving the original
-extension. If a Track value contains a total count such as 04/32, only the
-track id before the slash is used.
+The script recursively scans audio files in DIRECTORY, reads each file's Track
+tag with exiftool, and renames the file to TRACK_ID.EXT in its existing parent
+directory while preserving the original extension. If a Track value contains a
+total count such as 04/32, only the track id before the slash is used.
 
 Examples:
   audiobook-convert rename-track-id
@@ -75,8 +75,8 @@ fi
 }
 
 stage::find_audio_files() {
-# Scan only source audio files from the target directory. Sidecar files such as
-# cover.jpg, tags.xml, chapters.txt, and existing MKA outputs are ignored.
+# Recursively scan source audio files from the target directory. Sidecars such
+# as cover.jpg, tags.xml, chapters.txt, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
 	common::find_audio_files "$target_dir"
 )
