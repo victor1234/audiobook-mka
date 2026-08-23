@@ -14,7 +14,7 @@ Use the result later with mkvmerge --global-tags.
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 -h | --help)
 	stage::usage
@@ -25,7 +25,7 @@ esac
 # Write Matroska global tags XML to the first argument, or to tags.xml by default.
 output="${1:-tags.xml}"
 
-common::require_commands xmllint || exit 1
+}
 
 stage::xml_escape() {
 	local value="$1"
@@ -78,6 +78,7 @@ stage::write_simple_tag() {
 	printf '%s\n' '    </Simple>'
 }
 
+stage::load_tag_defaults() {
 default_title="$(common::matroska_tag_value "$output" TITLE)"
 # For a new audiobook folder, the directory name is usually a useful title seed.
 [[ -n "$default_title" ]] || default_title="$(basename "$PWD")"
@@ -91,6 +92,9 @@ default_language="$(common::matroska_tag_value "$output" LANGUAGE)"
 default_genre="$(common::matroska_tag_value "$output" GENRE)"
 default_description="$(common::matroska_tag_value "$output" DESCRIPTION)"
 
+}
+
+stage::prompt_for_tags() {
 echo "Creating Matroska audiobook tags: $output"
 echo "Press Enter to keep the default. Type - to clear a field."
 echo
@@ -105,6 +109,9 @@ stage::ask_tag language "Language" "$default_language"
 stage::ask_tag genre "Genre" "$default_genre"
 stage::ask_tag description "Description" "$default_description"
 
+}
+
+stage::show_tag_summary() {
 echo
 echo "Tags to write:"
 printf '  Title: %s\n' "${title:-<empty>}"
@@ -118,12 +125,18 @@ printf '  Genre: %s\n' "${genre:-<empty>}"
 printf '  Description: %s\n' "${description:-<empty>}"
 echo
 
+}
+
+stage::confirm_write() {
 read -r -p "Write $output? [y/N]: " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
 	echo "aborted"
 	exit 0
 fi
 
+}
+
+stage::write_tags_file() {
 tmp_file="$(mktemp)"
 trap 'rm -f "$tmp_file"' EXIT
 
@@ -151,6 +164,20 @@ xmllint --noout "$tmp_file"
 mv "$tmp_file" "$output"
 trap - EXIT
 
+}
+
+stage::report_created_tags() {
 echo "created $output"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	common::require_commands xmllint || exit 1
+	stage::load_tag_defaults
+	stage::prompt_for_tags
+	stage::show_tag_summary
+	stage::confirm_write
+	stage::write_tags_file
+	stage::report_created_tags
 }

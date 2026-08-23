@@ -21,7 +21,7 @@ AUTHOR - TITLE[ {NARRATOR}].mka.
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 -h | --help)
 	stage::usage
@@ -41,6 +41,9 @@ audio_dir="$4"
 output="${5:-}"
 cover="$image_dir/cover.jpg"
 
+}
+
+stage::validate_inputs() {
 if [[ ! -f "$chapters" ]]; then
 	echo "error: chapter file not found: $chapters" >&2
 	exit 1
@@ -66,7 +69,7 @@ if [[ ! -d "$audio_dir" ]]; then
 	exit 1
 fi
 
-common::require_commands mkvmerge xmllint || exit 1
+}
 
 # Keep generated filenames usable on common filesystems while preserving normal
 # punctuation, spaces, and non-ASCII book titles.
@@ -111,10 +114,14 @@ stage::default_output() {
 	printf '%s/%s.mka' "$audio_dir" "$name"
 }
 
+stage::resolve_output() {
 if [[ -z "$output" ]]; then
 	output="$(stage::default_output)"
 fi
 
+}
+
+stage::find_audio_files() {
 # Scan only source audio files from the audiobook directory. Sidecar files such
 # as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
@@ -126,6 +133,9 @@ if ((${#audio_files[@]} == 0)); then
 	exit 1
 fi
 
+}
+
+stage::build_mkvmerge_inputs() {
 # mkvmerge appends files only when later inputs are prefixed with '+'. Without
 # the prefix each audio file becomes a separate track.
 mkvmerge_inputs=("${audio_files[0]}")
@@ -133,6 +143,9 @@ for audio in "${audio_files[@]:1}"; do
 	mkvmerge_inputs+=("+$audio")
 done
 
+}
+
+stage::create_mka() {
 mkvmerge -o "$output" \
 	--chapters "$chapters" \
 	--global-tags "$tags" \
@@ -141,6 +154,20 @@ mkvmerge -o "$output" \
 	--attach-file "$cover" \
 	"${mkvmerge_inputs[@]}"
 
+}
+
+stage::report_created_mka() {
 echo "created $output from ${#audio_files[@]} audio files"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	stage::validate_inputs
+	common::require_commands mkvmerge xmllint || exit 1
+	stage::resolve_output
+	stage::find_audio_files
+	stage::build_mkvmerge_inputs
+	stage::create_mka
+	stage::report_created_mka
 }

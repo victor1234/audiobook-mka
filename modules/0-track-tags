@@ -21,7 +21,7 @@ When running through mise from a subdirectory, pass "$PWD" explicitly:
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 -h | --help)
 	stage::usage
@@ -30,14 +30,17 @@ case "${1:-}" in
 esac
 
 target_dir="${1:-.}"
+}
 
+stage::validate_target_directory() {
 if [[ ! -d "$target_dir" ]]; then
 	echo "error: directory not found: $target_dir" >&2
 	exit 1
 fi
 
-common::require_commands column exiftool jq || exit 1
+}
 
+stage::find_audio_files() {
 # Scan only source audio files from the target directory. Sidecar files such as
 # cover.jpg, tags.xml, and chapters.txt are intentionally ignored for this
 # pre-MKA check.
@@ -50,6 +53,9 @@ if ((${#audio_files[@]} == 0)); then
 	exit 1
 fi
 
+}
+
+stage::print_track_tags() {
 # Read metadata as JSON, shape it into tab-separated rows, then align columns.
 exiftool -q -j -Track -Title "${audio_files[@]}" |
 	jq -r '
@@ -63,4 +69,12 @@ exiftool -q -j -Track -Title "${audio_files[@]}" |
   ' |
 	column -t -s $'\t'
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	stage::validate_target_directory
+	common::require_commands column exiftool jq || exit 1
+	stage::find_audio_files
+	stage::print_track_tags
 }

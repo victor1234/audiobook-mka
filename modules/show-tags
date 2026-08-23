@@ -10,7 +10,7 @@ Arguments:
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 "" | -h | --help)
 	stage::usage
@@ -18,8 +18,16 @@ case "${1:-}" in
 	;;
 esac
 
+}
+
+stage::show_tags() {
 # Show raw ID3 fields with group names, duplicate fields, stable sorting, and
 # short tag names. This is useful for inspecting source MP3 metadata.
 exiftool -G1 -a -sort -s -s -ID3:all "$1"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	stage::show_tags "$1"
 }

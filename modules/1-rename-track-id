@@ -23,7 +23,7 @@ Examples:
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 dry_run=0
 target_dir="."
 
@@ -60,13 +60,17 @@ if (($# > 0)); then
 	exit 1
 fi
 
+}
+
+stage::validate_target_directory() {
 if [[ ! -d "$target_dir" ]]; then
 	echo "error: directory not found: $target_dir" >&2
 	exit 1
 fi
 
-common::require_commands exiftool || exit 1
+}
 
+stage::find_audio_files() {
 # Scan only source audio files from the target directory. Sidecar files such as
 # cover.jpg, tags.xml, chapters.txt, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
@@ -77,6 +81,8 @@ if ((${#audio_files[@]} == 0)); then
 	echo "error: no audio files found in $target_dir" >&2
 	exit 1
 fi
+
+}
 
 # Convert the Track tag to a filename-safe id. Track totals such as 04/32 are
 # reduced to 04 because slash is a path separator.
@@ -102,11 +108,13 @@ stage::track_id() {
 	printf '%s' "$track"
 }
 
-declare -a sources=()
-declare -a targets=()
-declare -a temps=()
-declare -A planned_targets=()
-declare -A source_paths=()
+
+stage::plan_renames() {
+declare -ga sources=()
+declare -ga targets=()
+declare -ga temps=()
+declare -gA planned_targets=()
+declare -gA source_paths=()
 
 for file in "${audio_files[@]}"; do
 	source_paths["$file"]=1
@@ -138,6 +146,9 @@ for target in "${targets[@]}"; do
 	fi
 done
 
+}
+
+stage::count_planned_renames() {
 rename_count=0
 for index in "${!sources[@]}"; do
 	source="${sources[$index]}"
@@ -153,6 +164,9 @@ for index in "${!sources[@]}"; do
 	fi
 done
 
+}
+
+stage::handle_noop_or_dry_run() {
 if ((rename_count == 0)); then
 	echo "nothing to rename"
 	exit 0
@@ -163,6 +177,9 @@ if ((dry_run)); then
 	exit 0
 fi
 
+}
+
+stage::rename_sources_to_temporary_paths() {
 for index in "${!sources[@]}"; do
 	source="${sources[$index]}"
 	target="${targets[$index]}"
@@ -178,6 +195,9 @@ for index in "${!sources[@]}"; do
 	temps+=("$temp")
 done
 
+}
+
+stage::rename_temporary_paths_to_targets() {
 for index in "${!sources[@]}"; do
 	temp="${temps[$index]}"
 	target="${targets[$index]}"
@@ -187,6 +207,22 @@ for index in "${!sources[@]}"; do
 	printf 'renamed: %s -> %s\n' "${sources[$index]}" "$target"
 done
 
+}
+
+stage::report_renamed_files() {
 echo "renamed $rename_count files"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	stage::validate_target_directory
+	common::require_commands exiftool || exit 1
+	stage::find_audio_files
+	stage::plan_renames
+	stage::count_planned_renames
+	stage::handle_noop_or_dry_run
+	stage::rename_sources_to_temporary_paths
+	stage::rename_temporary_paths_to_targets
+	stage::report_renamed_files
 }

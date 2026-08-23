@@ -14,7 +14,7 @@ names are read from each MP3 file's Title metadata tag.
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 -h | --help)
 	stage::usage
@@ -25,8 +25,9 @@ esac
 # Write to the first argument, or to chapters.txt by default.
 output="${1:-chapters.txt}"
 
-common::require_commands exiftool ffprobe || exit 1
+}
 
+stage::find_mp3_files() {
 # Scan only the current directory and sort naturally, so 2.mp3 comes before 10.mp3.
 mapfile -d '' mp3_files < <(find . -maxdepth 1 -type f -iname '*.mp3' -print0 | sort -zV)
 
@@ -34,6 +35,8 @@ if ((${#mp3_files[@]} == 0)); then
 	echo "error: no MP3 files found in current directory" >&2
 	exit 1
 fi
+
+}
 
 # Return the MP3 duration as seconds with a fractional part.
 stage::duration_seconds() {
@@ -78,6 +81,7 @@ stage::timestamp() {
   '
 }
 
+stage::write_chapters() {
 # Emit mkvmerge simple chapters: CHAPTERxx=start time and CHAPTERxxNAME=title.
 {
 	elapsed="0"
@@ -103,6 +107,17 @@ stage::timestamp() {
 	done
 } >"$output"
 
+}
+
+stage::report_created_chapters() {
 echo "created $output with ${#mp3_files[@]} chapters"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	common::require_commands exiftool ffprobe || exit 1
+	stage::find_mp3_files
+	stage::write_chapters
+	stage::report_created_chapters
 }

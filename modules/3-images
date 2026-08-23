@@ -14,7 +14,7 @@ cover is selected by largest pixel area, then largest file size.
 EOF
 }
 
-stage::run() {
+stage::parse_arguments() {
 case "${1:-}" in
 -h | --help)
 	stage::usage
@@ -25,8 +25,9 @@ esac
 # Output directory can be overridden by the first argument.
 output_dir="${1:-images}"
 
-common::require_commands ffprobe ffmpeg sha256sum || exit 1
+}
 
+stage::find_audio_files() {
 # Only scan the current directory. The script is intended to be run inside one
 # audiobook folder, not recursively across the whole library.
 mapfile -d '' audio_files < <(
@@ -38,11 +39,17 @@ if ((${#audio_files[@]} == 0)); then
 	exit 1
 fi
 
+}
+
+stage::prepare_output_directory() {
 mkdir -p "$output_dir"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-declare -A seen_hashes=()
+}
+
+stage::seed_seen_hashes() {
+declare -gA seen_hashes=()
 
 # Seed the dedupe set from images already in the output directory. This makes
 # repeated runs idempotent and avoids creating image-002.jpg for the same cover.
@@ -55,6 +62,8 @@ done < <(
 		-o -iname '*.png' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
 		-print0
 )
+
+}
 
 stage::next_number() {
 	local number=1
@@ -142,6 +151,7 @@ stage::promote_best_cover() {
 	echo "selected $cover from ${best_image#./}"
 }
 
+stage::extract_unique_images() {
 extracted_count=0
 unique_count=0
 duplicate_count=0
@@ -197,9 +207,21 @@ for audio in "${audio_files[@]}"; do
 		((++unique_count))
 	done
 done
+}
 
+stage::report_extracted_images() {
 stage::promote_best_cover
 
 echo "extracted $unique_count unique images to $output_dir ($duplicate_count duplicates skipped)"
 
+}
+
+stage::run() {
+	stage::parse_arguments "$@"
+	common::require_commands ffprobe ffmpeg sha256sum || exit 1
+	stage::find_audio_files
+	stage::prepare_output_directory
+	stage::seed_seen_hashes
+	stage::extract_unique_images
+	stage::report_extracted_images
 }
