@@ -48,34 +48,34 @@ The examples assume the repository is located at `/path/to/audiobooks`.
    0-track-tags .
    ```
 
-2. Preview and then apply filenames based on each file's `Track` tag:
+1. Preview and then apply filenames based on each file's `Track` tag:
 
    ```bash
    1-rename-track-id --dry-run .
    1-rename-track-id .
    ```
 
-3. Create chapter entries from naturally sorted MP3 files. Chapter names come
+1. Create chapter entries from naturally sorted MP3 files. Chapter names come
    from the files' `Title` tags:
 
    ```bash
    2-chapters chapters.txt
    ```
 
-4. Extract embedded artwork, remove exact duplicates, and select the largest
+1. Extract embedded artwork, remove exact duplicates, and select the largest
    image as `images/cover.jpg`:
 
    ```bash
    3-images images
    ```
 
-5. Enter the audiobook's global metadata interactively:
+1. Enter the audiobook's global metadata interactively:
 
    ```bash
    4-audiobook-tags tags.xml
    ```
 
-6. Merge the tracks, chapters, tags, and cover into an MKA file:
+1. Merge the tracks, chapters, tags, and cover into an MKA file:
 
    ```bash
    5-create-mka chapters.txt tags.xml images .
@@ -136,7 +136,8 @@ Install the repository's Git pre-commit hook after installing the mise tools:
 mise exec -- prek install
 ```
 
-Run shfmt and ShellCheck across all shell scripts before committing changes:
+Run shfmt, ShellCheck, and mdformat across all supported files before committing
+changes:
 
 ```bash
 mise exec -- prek run --all-files
@@ -147,6 +148,7 @@ To run one check independently, continue to invoke it through prek:
 ```bash
 mise exec -- prek run shfmt --all-files
 mise exec -- prek run shellcheck --all-files
+mise exec -- prek run mdformat --all-files
 ```
 
 Keep scripts documented with focused comments and a useful `--help` output.
