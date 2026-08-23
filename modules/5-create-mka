@@ -66,28 +66,7 @@ if [[ ! -d "$audio_dir" ]]; then
 	exit 1
 fi
 
-for command in mkvmerge xmllint; do
-	if ! command -v "$command" >/dev/null 2>&1; then
-		echo "error: $command is required" >&2
-		exit 1
-	fi
-done
-
-# Trim leading and trailing whitespace from a metadata value.
-stage::trim() {
-	local value="$1"
-	value="${value#"${value%%[![:space:]]*}"}"
-	value="${value%"${value##*[![:space:]]}"}"
-	printf '%s' "$value"
-}
-
-# Read one SimpleTag value from the global Matroska tags XML.
-stage::tag_value() {
-	local name="$1"
-
-	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
-		"$tags" 2>/dev/null || true
-}
+common::require_commands mkvmerge xmllint || exit 1
 
 # Keep generated filenames usable on common filesystems while preserving normal
 # punctuation, spaces, and non-ASCII book titles.
@@ -102,7 +81,7 @@ stage::filename_part() {
 	value="${value//</(}"
 	value="${value//>/)}"
 	value="${value//|/-}"
-	value="$(stage::trim "$value")"
+	value="$(common::trim "$value")"
 	printf '%s' "$value"
 }
 
@@ -110,9 +89,9 @@ stage::filename_part() {
 stage::default_output() {
 	local author title narrator name
 
-	author="$(stage::filename_part "$(stage::tag_value AUTHOR)")"
-	title="$(stage::filename_part "$(stage::tag_value TITLE)")"
-	narrator="$(stage::filename_part "$(stage::tag_value NARRATOR)")"
+	author="$(stage::filename_part "$(common::matroska_tag_value "$tags" AUTHOR)")"
+	title="$(stage::filename_part "$(common::matroska_tag_value "$tags" TITLE)")"
+	narrator="$(stage::filename_part "$(common::matroska_tag_value "$tags" NARRATOR)")"
 
 	if [[ -z "$author" ]]; then
 		echo "error: AUTHOR tag is required when OUTPUT is omitted" >&2
@@ -139,11 +118,7 @@ fi
 # Scan only source audio files from the audiobook directory. Sidecar files such
 # as chapters.txt, tags.xml, cover.jpg, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
-	find "$audio_dir" -maxdepth 1 -type f \
-		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-		-print0 | sort -zV
+	common::find_audio_files "$audio_dir"
 )
 
 if ((${#audio_files[@]} == 0)); then

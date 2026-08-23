@@ -65,33 +65,18 @@ if [[ ! -d "$target_dir" ]]; then
 	exit 1
 fi
 
-if ! command -v exiftool >/dev/null 2>&1; then
-	echo "error: exiftool is required" >&2
-	exit 1
-fi
+common::require_commands exiftool || exit 1
 
 # Scan only source audio files from the target directory. Sidecar files such as
 # cover.jpg, tags.xml, chapters.txt, and existing MKA outputs are ignored.
 mapfile -d '' audio_files < <(
-	find "$target_dir" -maxdepth 1 -type f \
-		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-		-print0 | sort -zV
+	common::find_audio_files "$target_dir"
 )
 
 if ((${#audio_files[@]} == 0)); then
 	echo "error: no audio files found in $target_dir" >&2
 	exit 1
 fi
-
-# Trim leading and trailing whitespace from a metadata value.
-stage::trim() {
-	local value="$1"
-	value="${value#"${value%%[![:space:]]*}"}"
-	value="${value%"${value##*[![:space:]]}"}"
-	printf '%s' "$value"
-}
 
 # Convert the Track tag to a filename-safe id. Track totals such as 04/32 are
 # reduced to 04 because slash is a path separator.
@@ -100,9 +85,9 @@ stage::track_id() {
 	local track
 
 	track="$(exiftool -q -q -s3 -Track "$file")"
-	track="$(stage::trim "$track")"
+	track="$(common::trim "$track")"
 	track="${track%%/*}"
-	track="$(stage::trim "$track")"
+	track="$(common::trim "$track")"
 
 	if [[ -z "$track" ]]; then
 		echo "error: missing Track tag: $file" >&2

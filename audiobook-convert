@@ -70,8 +70,10 @@ show-tags) stage_module="show-tags" ;;
 	;;
 esac
 
-# Only one module is sourced per process, so every module can expose the same
-# small stage::run contract without leaking stage-specific implementation.
+# Load helpers proven to be shared by multiple stages, then load only the
+# selected stage module so stage-specific implementation remains isolated.
+# shellcheck source=/dev/null
+source "$project_dir/modules/common.sh"
 # shellcheck source=/dev/null
 source "$project_dir/modules/$stage_module"
 stage::run "$@"

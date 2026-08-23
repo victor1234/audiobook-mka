@@ -156,9 +156,13 @@ mise exec -- audiobook-convert track-tags "$PWD"
 .
 ├── audiobook-convert      # Executable CLI entrypoint
 ├── mise.toml               # Development tools and repository PATH configuration
-├── modules/                 # Non-executable sourced stage modules
+├── modules/                 # Sourced stage modules and proven shared helpers
 └── data/                   # Local source material and generated audiobook data
 ```
+
+`modules/common.sh` contains only helpers already used by at least two stage
+modules. Argument handling, validation, transformations, and output behavior
+remain in the module for the stage that owns them.
 
 Stages process only files directly inside the selected audiobook directory;
 they do not scan nested directories recursively. Existing MKA outputs and

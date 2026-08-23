@@ -25,21 +25,12 @@ esac
 # Output directory can be overridden by the first argument.
 output_dir="${1:-images}"
 
-for command in ffprobe ffmpeg sha256sum; do
-	if ! command -v "$command" >/dev/null 2>&1; then
-		echo "error: $command is required" >&2
-		exit 1
-	fi
-done
+common::require_commands ffprobe ffmpeg sha256sum || exit 1
 
 # Only scan the current directory. The script is intended to be run inside one
 # audiobook folder, not recursively across the whole library.
 mapfile -d '' audio_files < <(
-	find . -maxdepth 1 -type f \
-		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
-		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
-		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \
-		-print0 | sort -zV
+	common::find_audio_files .
 )
 
 if ((${#audio_files[@]} == 0)); then

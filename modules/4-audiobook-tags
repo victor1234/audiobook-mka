@@ -25,10 +25,7 @@ esac
 # Write Matroska global tags XML to the first argument, or to tags.xml by default.
 output="${1:-tags.xml}"
 
-if ! command -v xmllint >/dev/null 2>&1; then
-	echo "error: xmllint is required" >&2
-	exit 1
-fi
+common::require_commands xmllint || exit 1
 
 stage::xml_escape() {
 	local value="$1"
@@ -38,17 +35,6 @@ stage::xml_escape() {
 	value=${value//\"/&quot;}
 	value=${value//\'/&apos;}
 	printf '%s' "$value"
-}
-
-# Read an existing global SimpleTag from the output XML so reruns can offer the
-# previous value as the interactive default.
-stage::tag_value() {
-	local name="$1"
-
-	[[ -s "$output" ]] || return 0
-
-	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
-		"$output" 2>/dev/null || true
 }
 
 # Prompt for one tag. Enter keeps the default; a single dash clears the value.
@@ -92,18 +78,18 @@ stage::write_simple_tag() {
 	printf '%s\n' '    </Simple>'
 }
 
-default_title="$(stage::tag_value TITLE)"
+default_title="$(common::matroska_tag_value "$output" TITLE)"
 # For a new audiobook folder, the directory name is usually a useful title seed.
 [[ -n "$default_title" ]] || default_title="$(basename "$PWD")"
 
-default_subtitle="$(stage::tag_value SUBTITLE)"
-default_author="$(stage::tag_value AUTHOR)"
-default_narrator="$(stage::tag_value NARRATOR)"
-default_publisher="$(stage::tag_value PUBLISHER)"
-default_date="$(stage::tag_value DATE_RELEASED)"
-default_language="$(stage::tag_value LANGUAGE)"
-default_genre="$(stage::tag_value GENRE)"
-default_description="$(stage::tag_value DESCRIPTION)"
+default_subtitle="$(common::matroska_tag_value "$output" SUBTITLE)"
+default_author="$(common::matroska_tag_value "$output" AUTHOR)"
+default_narrator="$(common::matroska_tag_value "$output" NARRATOR)"
+default_publisher="$(common::matroska_tag_value "$output" PUBLISHER)"
+default_date="$(common::matroska_tag_value "$output" DATE_RELEASED)"
+default_language="$(common::matroska_tag_value "$output" LANGUAGE)"
+default_genre="$(common::matroska_tag_value "$output" GENRE)"
+default_description="$(common::matroska_tag_value "$output" DESCRIPTION)"
 
 echo "Creating Matroska audiobook tags: $output"
 echo "Press Enter to keep the default. Type - to clear a field."
