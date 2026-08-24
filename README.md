@@ -54,6 +54,7 @@ audiobook-convert workspace ./book
 audiobook-convert fix-tag-encoding WINDOWS-1251 ./*.mp3
 audiobook-convert track-tags .
 audiobook-convert set-track-number --dry-run .
+audiobook-convert combine-audio ./part-1 ./part-1.mp3
 audiobook-convert rename-track-id --dry-run .
 audiobook-convert chapters chapters.txt
 ```
@@ -79,6 +80,7 @@ The entrypoint provides these stage subcommands:
 | `fix-tag-encoding` | `fix-tag-encoding.sh` | utility |
 | `track-tags` | `0-track-tags.sh` | 0 |
 | `set-track-number` | `set-track-number.sh` | utility |
+| `combine-audio` | `combine-audio.sh` | utility |
 | `rename-track-id` | `1-rename-track-id.sh` | 1 |
 | `chapters` | `2-chapters.sh` | 2 |
 | `images` | `3-images.sh` | 3 |
@@ -171,6 +173,19 @@ available for read-only source inspection. No automatic pipeline is provided.
    audiobook-convert rename-track-id --dry-run .
    audiobook-convert rename-track-id .
    ```
+
+To replace the naturally sorted audio files directly inside one directory with
+a single file of the same type, provide a new output path. The command copies
+compatible streams without re-encoding, preserves tags from the first naturally
+sorted file, and removes the originals only after it has created and
+verified the output:
+
+```bash
+audiobook-convert combine-audio ./part-1 ./part-1.mp3
+```
+
+The command requires at least two inputs with the same extension and compatible
+audio properties. It ignores subdirectories and refuses to overwrite OUTPUT.
 
 1. Create chapter entries from recursively discovered, naturally sorted MP3
    files. Chapter names come from the files' `Title` tags; every MP3 becomes one

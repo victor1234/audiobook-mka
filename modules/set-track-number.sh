@@ -87,39 +87,6 @@ stage::find_audio_files() {
 	fi
 }
 
-# Select the output container explicitly because temporary paths have no media
-# extension. ALAC may be stored in either an MP4-family or CAF container.
-stage::muxer_for_file() {
-	local file="$1"
-	local extension format_name
-
-	extension="${file##*.}"
-	extension="${extension,,}"
-
-	case "$extension" in
-	aac) printf 'adts' ;;
-	alac)
-		format_name="$(ffprobe -v error -show_entries format=format_name -of default=nw=1:nk=1 "$file")"
-		if [[ ",$format_name," == *,caf,* ]]; then
-			printf 'caf'
-		else
-			printf 'ipod'
-		fi
-		;;
-	flac) printf 'flac' ;;
-	m4a | m4b) printf 'ipod' ;;
-	mp3) printf 'mp3' ;;
-	oga | ogg) printf 'ogg' ;;
-	opus) printf 'opus' ;;
-	wav) printf 'wav' ;;
-	wma) printf 'asf' ;;
-	*)
-		echo "error: unsupported audio extension: $file" >&2
-		return 1
-		;;
-	esac
-}
-
 stage::print_plan() {
 	local index
 
@@ -160,7 +127,7 @@ stage::prepare_updates() {
 	for index in "${!audio_files[@]}"; do
 		file="${audio_files[$index]}"
 		track_number="$((index + 1))"
-		muxer="$(stage::muxer_for_file "$file")"
+		muxer="$(common::audio_muxer_for_file "$file")"
 		temporary="$(mktemp -p "$(dirname -- "$file")" '.set-track-number.XXXXXX')"
 		temporary_files+=("$temporary")
 		metadata_options=(-metadata "track=$track_number")

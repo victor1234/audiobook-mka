@@ -38,6 +38,39 @@ common::find_audio_files() {
 		-print0 | sort -zV
 }
 
+# Select the FFmpeg output muxer for a supported audio filename. ALAC needs a
+# probe because the extension is used for both MP4-family and CAF containers.
+common::audio_muxer_for_file() {
+	local file="$1"
+	local extension format_name
+
+	extension="${file##*.}"
+	extension="${extension,,}"
+
+	case "$extension" in
+	aac) printf 'adts' ;;
+	alac)
+		format_name="$(ffprobe -v error -show_entries format=format_name -of default=nw=1:nk=1 "$file")"
+		if [[ ",$format_name," == *,caf,* ]]; then
+			printf 'caf'
+		else
+			printf 'ipod'
+		fi
+		;;
+	flac) printf 'flac' ;;
+	m4a | m4b) printf 'ipod' ;;
+	mp3) printf 'mp3' ;;
+	oga | ogg) printf 'ogg' ;;
+	opus) printf 'opus' ;;
+	wav) printf 'wav' ;;
+	wma) printf 'asf' ;;
+	*)
+		echo "error: unsupported audio extension: $file" >&2
+		return 1
+		;;
+	esac
+}
+
 # Trim leading and trailing whitespace from a value.
 common::trim() {
 	local value="$1"
