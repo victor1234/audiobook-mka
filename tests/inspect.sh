@@ -192,7 +192,8 @@ require_output 'E:duplicate Track' "$test_root/problem-report"
 require_output 'E:unreadable audio' "$test_root/problem-report"
 require_pattern '04\.mp3 +none +\?' "$test_root/problem-report"
 require_output 'E:missing Track; E:missing Title' "$test_root/problem-report"
-require_output 'W:CP1251 mojibake' "$test_root/problem-report"
+require_output 'Ñòóäèÿ ÀÐÄÈÑ ïðåäñòàâëÿåò' "$test_root/problem-report"
+reject_output 'CP1251 mojibake' "$test_root/problem-report"
 require_output 'W:Track gap' "$test_root/problem-report"
 require_output 'W:nonnumeric Track' "$test_root/problem-report"
 require_output 'W:Track out of order' "$test_root/problem-report"
@@ -200,8 +201,31 @@ require_output 'ERROR (1 file): duplicate Track in one directory' "$test_root/pr
 require_output 'ERROR (1 file): missing Track tag' "$test_root/problem-report"
 require_output 'ERROR (1 file): missing MP3 Title tag' "$test_root/problem-report"
 require_output 'ERROR (1 file): unreadable or unrecognized audio' "$test_root/problem-report"
-require_output 'WARNING (1 file): CP1251 mojibake' "$test_root/problem-report"
 require_output 'non-MP3 audio file(s) will be omitted' "$test_root/problem-report"
+
+# Explicit decoding uses only the requested source charset.
+: >"$trace_file"
+set +e
+INSPECT_REAL_JQ="$real_jq" INSPECT_REAL_ICONV="$real_iconv" INSPECT_REAL_MEDIAINFO="$real_mediainfo" INSPECT_REAL_EXIFTOOL="$real_exiftool" INSPECT_TOOL_TRACE="$trace_file" \
+	PATH="$trace_bin:$PATH" "$command_path" inspect --encoding WINDOWS-1251 "$problem_book" >"$test_root/explicit-encoding-report"
+explicit_status=$?
+set -e
+[[ "$explicit_status" == 1 ]] || { echo "expected existing blockers with explicit encoding" >&2; exit 1; }
+require_output 'Студия АРДИС представляет' "$test_root/explicit-encoding-report"
+require_output 'W:decoded WINDOWS-1251' "$test_root/explicit-encoding-report"
+
+# Decoded path labels never replace or rename the real source path.
+encoding_path_book="$test_root/Encoding Path Book"
+encoded_path="$encoding_path_book/Ïåñíÿ.mp3"
+create_mp3 "$encoded_path" 1 'Encoded Path'
+before_path_hash="$(sha256sum "$encoded_path")"
+"$command_path" inspect "$encoding_path_book" >"$test_root/raw-path-report"
+"$command_path" inspect --encoding WINDOWS-1251 "$encoding_path_book" >"$test_root/decoded-path-report"
+require_output 'Ïåñíÿ.mp3' "$test_root/raw-path-report"
+require_output 'Песня.mp3' "$test_root/decoded-path-report"
+[[ -f "$encoded_path" ]] || { echo "inspect renamed an encoded source path" >&2; exit 1; }
+[[ "$before_path_hash" == "$(sha256sum "$encoded_path")" ]] || { echo "inspect changed an encoded source file" >&2; exit 1; }
+
 
 empty_book="$test_root/Empty Book"
 mkdir -p "$empty_book"
@@ -214,6 +238,13 @@ set -e
 	exit 1
 }
 require_output 'no supported audio files found' "$test_root/empty-error"
+
+set +e
+"$command_path" inspect --encoding NOT-A-CHARSET "$clean_book" >"$test_root/encoding-usage-output" 2>"$test_root/encoding-usage-error"
+encoding_usage_status=$?
+set -e
+[[ "$encoding_usage_status" == 2 ]] || { echo "expected unsupported encoding to exit 2" >&2; exit 1; }
+require_output 'unsupported encoding' "$test_root/encoding-usage-error"
 
 set +e
 "$command_path" inspect --unknown >"$test_root/usage-output" 2>"$test_root/usage-error"

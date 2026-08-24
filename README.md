@@ -100,6 +100,17 @@ The audio tree includes each file's metadata tag format/version. The report
 also lists external JPEG, PNG, and WebP images separately with their dimensions
 and size; unrelated files remain under `Other files`.
 
+By default, inspection displays paths and metadata exactly as they are returned
+by the filesystem and media probes. To decode mojibake for display, provide its
+known iconv-compatible source charset explicitly:
+
+```bash
+audiobook-convert inspect --encoding WINDOWS-1251 ./book
+```
+
+Decoded text and paths exist only in the report; inspection never renames source
+files or rewrites embedded tags.
+
 Inspection is read-only and does not require a workspace. It exits successfully
 when it finds only advisory warnings and fails when it finds an issue that
 blocks a current conversion stage, such as unreadable media or required missing

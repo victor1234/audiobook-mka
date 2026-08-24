@@ -2,12 +2,17 @@
 # Print command syntax, report contents, and read-only behavior.
 stage::usage() {
 	cat <<'HELP'
-Usage: audiobook-convert inspect [DIRECTORY]
+Usage: audiobook-convert inspect [--encoding CHARSET] [DIRECTORY]
 
 Examine an audiobook source tree without changing it.
 
 Arguments:
   DIRECTORY  Directory to inspect. Default: current working directory
+
+Options:
+  --encoding CHARSET  Decode mojibake-shaped paths and tags for display using
+                      an iconv-compatible source charset.
+  -h, --help        Show this help
 
 The report describes the directory structure, audio files, common metadata,
 external images, existing conversion artifacts, and problems that could affect
@@ -18,19 +23,49 @@ identify inputs that block a current workflow stage and make the command exit
 with status 1.
 
 This read-only command can run directly on an original source directory; an
-audiobook-convert workspace is not required.
+audiobook-convert workspace is not required. Without --encoding, paths and tags
+are displayed exactly as the filesystem and media probe return them. Decoding
+changes only the report; it never renames files or rewrites metadata.
 HELP
 }
 
 # Parse the optional source directory and reject unsupported argument forms.
 stage::parse_arguments() {
 	target_dir="."
+	encoding_mode=""
+	encoding_seen=0
 
 	while (($# > 0)); do
 		case "$1" in
 		-h | --help)
 			stage::usage
 			exit 0
+			;;
+		--encoding)
+			if ((encoding_seen)); then
+				echo "error: --encoding may be specified only once" >&2
+				exit 2
+			fi
+			if (($# < 2)) || [[ -z "$2" || "$2" == -* ]]; then
+				echo "error: --encoding requires a charset" >&2
+				exit 2
+			fi
+			encoding_mode="$2"
+			encoding_seen=1
+			shift 2
+			;;
+		--encoding=*)
+			if ((encoding_seen)); then
+				echo "error: --encoding may be specified only once" >&2
+				exit 2
+			fi
+			encoding_mode="${1#*=}"
+			if [[ -z "$encoding_mode" ]]; then
+				echo "error: --encoding requires a charset" >&2
+				exit 2
+			fi
+			encoding_seen=1
+			shift
 			;;
 		--)
 			shift
@@ -56,6 +91,16 @@ stage::parse_arguments() {
 	if (($# > 0)); then
 		echo "error: too many arguments" >&2
 		stage::usage >&2
+		exit 2
+	fi
+}
+
+# Validate the requested source charset before inspecting any files.
+stage::validate_encoding() {
+	[[ -n "$encoding_mode" ]] || return 0
+	if [[ ! "$encoding_mode" =~ ^[[:alnum:]_.-]+$ ]] ||
+		! iconv -f "$encoding_mode" -t UTF-8 </dev/null >/dev/null 2>&1; then
+		echo "error: unsupported encoding: $encoding_mode" >&2
 		exit 2
 	fi
 }
@@ -174,23 +219,49 @@ stage::issue_description() {
 	"nonnumeric Track") printf 'nonnumeric Track tag' ;;
 	"missing Title") printf 'missing MP3 Title tag' ;;
 	"invalid UTF-8 path") printf 'invalid UTF-8 path' ;;
-	"CP1251 mojibake") printf 'CP1251 mojibake' ;;
+	"encoding decode failed") printf 'requested encoding could not be decoded' ;;
 	*) printf '%s' "$1" ;;
 	esac
 }
 
-# Candidate selection happens in the per-file jq pass. A successful recovery
-# from a dense Western byte-shaped candidate is a strong mojibake signal.
-stage::looks_like_cp1251_mojibake() {
+# Recover the legacy bytes that were mistakenly converted through Windows-1252.
+stage::recover_mojibake_bytes() {
 	local value="$1"
-	local repaired
+	printf '%s' "$value" | iconv -f UTF-8 -t WINDOWS-1252 2>/dev/null
+}
 
-	if ! repaired="$(printf '%s' "$value" | iconv -f UTF-8 -t WINDOWS-1252 2>/dev/null |
-		iconv -f WINDOWS-1251 -t UTF-8 2>/dev/null)"; then
-		return 1
-	fi
+# Report whether a value was selected by the per-file jq mojibake filter.
+stage::is_encoding_candidate() {
+	local value="$1"
+	local candidates_name="$2"
+	local -n candidates="$candidates_name"
+	local candidate
+	for candidate in "${candidates[@]:11}"; do
+		[[ "$candidate" == "$value" ]] && return 0
+	done
+	return 1
+}
 
-	[[ "$repaired" != "$value" ]]
+# Decode one selected display value while leaving non-candidates untouched.
+stage::decode_display_value() {
+	local value="$1"
+	local candidates_name="$2"
+	local charset="$3"
+	decoded_value="$value"
+	stage::is_encoding_candidate "$value" "$candidates_name" || return 0
+	decoded_value="$(stage::recover_mojibake_bytes "$value" |
+		iconv -f "$charset" -t UTF-8 2>/dev/null)" || return 1
+}
+
+# Save decoded basenames separately from the real paths used for file access.
+stage::record_display_path() {
+	local actual="$1"
+	local displayed="$2"
+	while [[ "$actual" != "." ]]; do
+		display_names["$actual"]="$(basename -- "$displayed")"
+		actual="$(dirname -- "$actual")"
+		displayed="$(dirname -- "$displayed")"
+	done
 }
 
 # Sort and join associative-array keys for deterministic summary values.
@@ -261,9 +332,11 @@ stage::probe_files() {
 	declare -gA previous_tracks=()
 	declare -gA file_error_counts=()
 	declare -gA file_warning_counts=()
+	declare -gA display_names=()
 	local file relative parent track title album artist extension media_info ancestor tag_format
 	local duration codec sample_rate channels format_name attached_pic target track_id has_audio
-	local display_duration cover value size track_number previous_track
+	local display_duration display_relative cover value size track_number previous_track
+	local encoding_label decoding_failed
 	local -a parsed=()
 
 	total_duration=0
@@ -344,6 +417,30 @@ stage::probe_files() {
 		channels="${parsed[8]}"
 		attached_pic="${parsed[9]}"
 		has_audio="${parsed[10]}"
+		display_relative="$relative"
+
+		# Decode only dense mojibake candidates, leaving all other report text
+		# exactly as returned by the filesystem and media probe.
+		if [[ -n "$encoding_mode" ]] && ((${#parsed[@]} > 11)); then
+			encoding_label="${encoding_mode^^}"
+			decoding_failed=0
+			stage::decode_display_value "$relative" parsed "$encoding_mode" || decoding_failed=1
+			display_relative="$decoded_value"
+			stage::decode_display_value "$track" parsed "$encoding_mode" || decoding_failed=1
+			track="$decoded_value"
+			stage::decode_display_value "$title" parsed "$encoding_mode" || decoding_failed=1
+			title="$decoded_value"
+			stage::decode_display_value "$album" parsed "$encoding_mode" || decoding_failed=1
+			album="$decoded_value"
+			stage::decode_display_value "$artist" parsed "$encoding_mode" || decoding_failed=1
+			artist="$decoded_value"
+			if ((decoding_failed)); then
+				stage::add_file_warning "encoding decode failed"
+			else
+				stage::add_file_warning "decoded $encoding_label"
+			fi
+		fi
+		stage::record_display_path "$relative" "$display_relative"
 		if [[ "$has_audio" != "1" ]]; then
 			stage::add_file_error "unreadable audio"
 			file_rows["$relative"]="$(stage::display_value "$track")"$'\t'"$(stage::display_value "$title")"$'\t'"$tag_format"$'\t?'$'\t'"${codec:-$extension}"$'\t?'$'\t'"$current_issues"
@@ -415,13 +512,6 @@ stage::probe_files() {
 		if ! printf '%s' "$relative" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; then
 			stage::add_file_warning "invalid UTF-8 path"
 		fi
-		for value in "${parsed[@]:11}"; do
-			if stage::looks_like_cp1251_mojibake "$value"; then
-				stage::add_file_warning "CP1251 mojibake"
-				break
-			fi
-		done
-
 		file_rows["$relative"]="$(stage::display_value "$track")"$'\t'"$(stage::display_value "$title")"$'\t'"$tag_format"$'\t'"$display_duration"$'\t'"${codec:-$extension}"$'\t'"$cover"$'\t'"$current_issues"
 	done
 
@@ -550,7 +640,7 @@ stage::print_tree_nodes() {
 			connector="└── "
 			child_prefix="$prefix    "
 		fi
-		name="$(stage::display_value "$(basename -- "$path")")"
+		name="$(stage::display_value "${display_names[$path]:-$(basename -- "$path")}")"
 
 		if [[ "$node_type" == "D" ]]; then
 			duration="$(stage::format_duration "${directory_durations[$path]:-0}")"
@@ -681,6 +771,7 @@ stage::print_findings() {
 stage::run() {
 	stage::parse_arguments "$@"
 	common::require_commands column exiftool ffprobe find iconv jq mediainfo paste realpath sed sort stat xmllint || exit 1
+	stage::validate_encoding
 	stage::validate_target
 	stage::probe_tag_formats
 	stage::probe_files
