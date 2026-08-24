@@ -8,6 +8,8 @@ Usage: audiobook-convert [GLOBAL_OPTIONS] COMMAND [ARGUMENTS...]
 Run one audiobook processing stage or metadata utility.
 
 Commands:
+  workspace        Copy an audiobook into an isolated working directory
+  clean-workspace  Delete a converter-created working directory
   track-tags       Inspect track numbers and titles (stage 0)
   rename-track-id  Rename audio files from their Track tags (stage 1)
   chapters         Create an mkvmerge chapter file (stage 2)
@@ -24,6 +26,8 @@ Each command sources one stage module and invokes stage::run. Stages remain
 independently runnable; this command does not run an automatic pipeline.
 
 Examples:
+  audiobook-convert workspace ./book
+  cd ../book.audiobook-work
   audiobook-convert track-tags .
   audiobook-convert rename-track-id --dry-run .
   audiobook-convert chapters chapters.txt
@@ -82,6 +86,8 @@ if [[ "$command_name" == "help" ]]; then
 fi
 
 case "$command_name" in
+workspace) stage_module="workspace" ;;
+clean-workspace) stage_module="clean-workspace" ;;
 track-tags) stage_module="0-track-tags" ;;
 rename-track-id) stage_module="1-rename-track-id" ;;
 chapters) stage_module="2-chapters" ;;

@@ -17,6 +17,8 @@ tag with exiftool, and renames the file to TRACK_ID.EXT in its existing parent
 directory while preserving the original extension. If a Track value contains a
 total count such as 04/32, only the track id before the slash is used.
 
+Applying renames requires a workspace created by `audiobook-convert workspace`.
+
 Examples:
   audiobook-convert rename-track-id
   audiobook-convert rename-track-id --dry-run "$PWD"
@@ -221,7 +223,9 @@ echo "renamed $rename_count files"
 stage::run() {
 	stage::parse_arguments "$@"
 	stage::validate_target_directory
-	common::require_commands exiftool || exit 1
+	common::require_commands exiftool realpath || exit 1
+	common::require_workspace || exit 1
+	common::require_workspace_input "$target_dir" || exit 1
 	stage::find_audio_files
 	stage::plan_renames
 	stage::count_planned_renames

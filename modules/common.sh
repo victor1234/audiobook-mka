@@ -1,6 +1,9 @@
 # Shared helpers for audiobook-convert stage modules.
 # Keep this file limited to behavior already required by multiple modules.
 
+readonly AUDIOBOOK_WORKSPACE_MARKER=".audiobook-workspace"
+readonly AUDIOBOOK_WORKSPACE_VERSION="1"
+
 # Verify that every external command needed by a stage is available.
 common::require_commands() {
 	local command
@@ -43,4 +46,81 @@ common::matroska_tag_value() {
 
 	xmllint --xpath "string((/Tags/Tag[not(Targets/*)]/Simple[Name='$name']/String)[1])" \
 		"$xml_file" 2>/dev/null || true
+}
+
+# Find the nearest converter workspace containing DIRECTORY. The marker must be
+# a regular file so a copied source tree cannot impersonate a workspace with a
+# directory or symlink of the same name.
+common::find_workspace() {
+	local directory candidate
+
+	directory="$(realpath -e -- "$1")" || return 1
+	[[ -d "$directory" ]] || directory="$(dirname -- "$directory")"
+
+	while :; do
+		candidate="$directory/$AUDIOBOOK_WORKSPACE_MARKER"
+		if [[ -f "$candidate" && ! -L "$candidate" ]] &&
+			[[ "$(sed -n '1p' "$candidate")" == "version=$AUDIOBOOK_WORKSPACE_VERSION" ]]; then
+			printf '%s\n' "$directory"
+			return 0
+		fi
+
+		[[ "$directory" == "/" ]] && return 1
+		directory="$(dirname -- "$directory")"
+	done
+}
+
+# Require a command to run from a prepared workspace. This protects modifying
+# stages even when their default output is the current directory.
+common::require_workspace() {
+	if ! workspace_root="$(common::find_workspace "$PWD")"; then
+		echo "error: run this command inside an audiobook-convert workspace" >&2
+		echo "hint: create one with: audiobook-convert workspace SOURCE" >&2
+		return 1
+	fi
+}
+
+# Ensure an existing input resolves inside the active workspace. realpath -e
+# follows symlinks, so links that escape the workspace are rejected.
+common::require_workspace_input() {
+	local path="$1"
+	local resolved
+
+	if ! resolved="$(realpath -e -- "$path")"; then
+		echo "error: path not found: $path" >&2
+		return 1
+	fi
+
+	case "$resolved" in
+	"$workspace_root" | "$workspace_root"/*) ;;
+	*)
+		echo "error: path is outside workspace: $path" >&2
+		return 1
+		;;
+	esac
+}
+
+# Ensure a prospective output resolves inside the workspace. realpath -m
+# normalizes missing path components while resolving existing symlink parents.
+common::require_workspace_output() {
+	local path="$1"
+	local resolved
+
+	if ! resolved="$(realpath -m -- "$path")"; then
+		echo "error: invalid output path: $path" >&2
+		return 1
+	fi
+
+	case "$resolved" in
+	"$workspace_root" | "$workspace_root"/*) ;;
+	*)
+		echo "error: output is outside workspace: $path" >&2
+		return 1
+		;;
+	esac
+
+	if [[ -L "$path" ]]; then
+		echo "error: output may not be a symbolic link: $path" >&2
+		return 1
+	fi
 }

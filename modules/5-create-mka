@@ -18,6 +18,9 @@ them into one continuous audio track. The cover image is attached from
 IMAGE_DIR/cover.jpg with the attachment name cover.jpg. If OUTPUT is omitted,
 the output filename is built from TAGS using the pattern
 AUTHOR - TITLE[ {NARRATOR}].mka.
+
+All inputs and the output must be inside a workspace created by
+`audiobook-convert workspace`.
 EOF
 }
 
@@ -178,9 +181,15 @@ echo "created $output from ${#audio_files[@]} audio files"
 
 stage::run() {
 	stage::parse_arguments "$@"
+	common::require_commands mkvmerge realpath xmllint || exit 1
+	common::require_workspace || exit 1
 	stage::validate_inputs
-	common::require_commands mkvmerge xmllint || exit 1
 	stage::resolve_output
+	common::require_workspace_input "$chapters" || exit 1
+	common::require_workspace_input "$tags" || exit 1
+	common::require_workspace_input "$image_dir" || exit 1
+	common::require_workspace_input "$audio_dir" || exit 1
+	common::require_workspace_output "$output" || exit 1
 	stage::find_audio_files
 	stage::build_mkvmerge_inputs
 	stage::create_mka

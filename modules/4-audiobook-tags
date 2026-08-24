@@ -11,6 +11,7 @@ Arguments:
 If OUTPUT already exists, its values are used as prompt defaults. Press Enter
 to keep a default, type - to clear a field, and confirm before writing.
 Use the result later with mkvmerge --global-tags.
+This command must run inside a workspace created by `audiobook-convert workspace`.
 EOF
 }
 
@@ -197,7 +198,9 @@ echo "created $output"
 
 stage::run() {
 	stage::parse_arguments "$@"
-	common::require_commands xmllint || exit 1
+	common::require_commands realpath xmllint || exit 1
+	common::require_workspace || exit 1
+	common::require_workspace_output "$output" || exit 1
 	stage::load_tag_defaults
 	stage::prompt_for_tags
 	stage::show_tag_summary

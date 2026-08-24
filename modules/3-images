@@ -11,6 +11,8 @@ Arguments:
 The script preserves each extracted image's original format, deduplicates by
 exact file content, and saves the best image as OUTPUT_DIR/cover.jpg. The best
 cover is selected by largest pixel area, then largest file size.
+
+This command must run inside a workspace created by `audiobook-convert workspace`.
 EOF
 }
 
@@ -241,7 +243,9 @@ echo "extracted $unique_count unique images to $output_dir ($duplicate_count dup
 
 stage::run() {
 	stage::parse_arguments "$@"
-	common::require_commands ffprobe ffmpeg sha256sum || exit 1
+	common::require_commands ffprobe ffmpeg realpath sha256sum || exit 1
+	common::require_workspace || exit 1
+	common::require_workspace_output "$output_dir" || exit 1
 	stage::find_audio_files
 	stage::prepare_output_directory
 	stage::seed_seen_hashes

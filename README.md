@@ -29,7 +29,8 @@ The audiobook stages also require these system commands:
 - `column`
 - `mkvmerge`
 - `xmllint`
-- standard Unix tools including `awk`, `find`, `sort`, and `sha256sum`
+- standard Unix tools including `awk`, `cp`, `find`, `mktemp`, `mv`, `realpath`,
+  `rm`, `sort`, and `sha256sum`
 
 Activate the mise environment from the repository root before using the
 commands:
@@ -46,6 +47,7 @@ Use the `audiobook-convert` entrypoint to run any processing stage:
 
 ```bash
 audiobook-convert --help
+audiobook-convert workspace ./book
 audiobook-convert track-tags .
 audiobook-convert rename-track-id --dry-run .
 audiobook-convert chapters chapters.txt
@@ -66,6 +68,8 @@ The entrypoint provides these stage subcommands:
 
 | Subcommand | Sourced module | Stage |
 | ----------------- | -------------------- | ----- |
+| `workspace` | `workspace` | setup |
+| `clean-workspace` | `clean-workspace` | cleanup |
 | `track-tags` | `0-track-tags` | 0 |
 | `rename-track-id` | `1-rename-track-id` | 1 |
 | `chapters` | `2-chapters` | 2 |
@@ -81,8 +85,20 @@ The additional `show-tags` utility is available as `audiobook-convert show-tags`
 
 ## Workflow
 
-Run each needed stage from the directory containing an audiobook's source
-tracks. No automatic pipeline is provided.
+First copy the original audiobook into an isolated workspace. Modifying stages
+refuse to run outside a workspace, while `track-tags` and `show-tags` remain
+available for read-only source inspection. No automatic pipeline is provided.
+
+1. Create the workspace and enter it:
+
+   ```bash
+   audiobook-convert workspace ./book
+   cd ./book.audiobook-work
+   ```
+
+   The default workspace is a persistent sibling of the source. The complete
+   source tree is copied without hard links, so subsequent changes cannot alter
+   original files.
 
 1. Inspect the source track numbers and titles:
 
@@ -137,6 +153,15 @@ tracks. No automatic pipeline is provided.
    audiobook-convert create-mka chapters.txt tags.xml images . audiobook.mka
    ```
 
+After copying the finished MKA elsewhere, leave the workspace for later reuse or
+remove it explicitly from its parent directory:
+
+```bash
+audiobook-convert clean-workspace ./book.audiobook-work
+```
+
+Cleanup refuses unmarked directories and symbolic links.
+
 Every stage provides detailed command help:
 
 ```bash
@@ -173,6 +198,8 @@ modules. Argument handling, validation, transformations, and output behavior
 remain in the module for the stage that owns them.
 
 Stages recursively process files beneath the selected audiobook directory.
+Workspace markers are versioned, and every modifying stage validates that its
+inputs and outputs resolve inside the marked workspace.
 Existing MKA outputs and sidecar files are excluded from source-audio
 discovery, and directory symlinks are not followed.
 

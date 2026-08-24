@@ -12,6 +12,8 @@ Arguments:
 The script scans the current directory recursively, sorts MP3 paths naturally,
 and creates one chapter per file using cumulative durations from ffprobe.
 Chapter names are read from each MP3 file's Title metadata tag.
+
+This command must run inside a workspace created by `audiobook-convert workspace`.
 EOF
 }
 
@@ -142,7 +144,9 @@ echo "created $output with ${#mp3_files[@]} chapters"
 
 stage::run() {
 	stage::parse_arguments "$@"
-	common::require_commands exiftool ffprobe || exit 1
+	common::require_commands exiftool ffprobe realpath || exit 1
+	common::require_workspace || exit 1
+	common::require_workspace_output "$output" || exit 1
 	stage::find_mp3_files
 	stage::write_chapters
 	stage::report_created_chapters
