@@ -16,12 +16,22 @@ common::require_commands() {
 	done
 }
 
-# Print supported source audio files recursively beneath a directory in natural
-# path order. NUL delimiters preserve paths containing whitespace or newlines.
+# Print supported source audio files beneath a directory in natural path order.
+# The optional "direct" scope limits discovery to immediate children. NUL
+# delimiters preserve paths containing whitespace or newlines.
 common::find_audio_files() {
 	local directory="$1"
+	local scope="${2:-recursive}"
+	local -a depth_options=()
 
-	find "$directory" -type f \
+	if [[ "$scope" == "direct" ]]; then
+		depth_options=(-maxdepth 1)
+	elif [[ "$scope" != "recursive" ]]; then
+		echo "error: unsupported audio discovery scope: $scope" >&2
+		return 2
+	fi
+
+	find "$directory" "${depth_options[@]}" -type f \
 		\( -iname '*.aac' -o -iname '*.alac' -o -iname '*.flac' -o -iname '*.m4a' \
 		-o -iname '*.m4b' -o -iname '*.mp3' -o -iname '*.oga' -o -iname '*.ogg' \
 		-o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \) \

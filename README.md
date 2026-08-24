@@ -51,6 +51,7 @@ audiobook-convert --help
 audiobook-convert inspect ./book
 audiobook-convert workspace ./book
 audiobook-convert track-tags .
+audiobook-convert set-track-number --dry-run .
 audiobook-convert rename-track-id --dry-run .
 audiobook-convert chapters chapters.txt
 ```
@@ -74,6 +75,7 @@ The entrypoint provides these stage subcommands:
 | `clean-workspace` | `clean-workspace.sh` | cleanup |
 | `inspect` | `inspect.sh` | inspection |
 | `track-tags` | `0-track-tags.sh` | 0 |
+| `set-track-number` | `set-track-number.sh` | utility |
 | `rename-track-id` | `1-rename-track-id.sh` | 1 |
 | `chapters` | `2-chapters.sh` | 2 |
 | `images` | `3-images.sh` | 3 |
@@ -136,6 +138,17 @@ available for read-only source inspection. No automatic pipeline is provided.
    ```bash
    audiobook-convert track-tags .
    ```
+
+1. If the Track tags need correction, preview and then assign sequential Track
+   values to naturally sorted audio files directly in one directory:
+
+   ```bash
+   audiobook-convert set-track-number --dry-run ./part-1
+   audiobook-convert set-track-number ./part-1
+   ```
+
+   This command does not recurse into subdirectories. It preserves audio
+   streams without re-encoding and ignores non-audio files.
 
 1. Preview and then apply filenames based on each file's `Track` tag:
 
