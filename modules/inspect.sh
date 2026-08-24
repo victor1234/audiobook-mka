@@ -98,8 +98,7 @@ stage::parse_arguments() {
 # Validate the requested source charset before inspecting any files.
 stage::validate_encoding() {
 	[[ -n "$encoding_mode" ]] || return 0
-	if [[ ! "$encoding_mode" =~ ^[[:alnum:]_.-]+$ ]] ||
-		! iconv -f "$encoding_mode" -t UTF-8 </dev/null >/dev/null 2>&1; then
+	if ! common::encoding_supported "$encoding_mode"; then
 		echo "error: unsupported encoding: $encoding_mode" >&2
 		exit 2
 	fi

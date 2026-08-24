@@ -27,6 +27,7 @@ The audiobook stages also require these system commands:
 - `ffmpeg` and `ffprobe`
 - `jq`
 - `mediainfo`
+- `mid3iconv` (provided by Mutagen; `python3-mutagen` on Debian/Ubuntu)
 - `column`
 - `mkvmerge`
 - `xmllint`
@@ -50,6 +51,7 @@ Use the `audiobook-convert` entrypoint to run any processing stage:
 audiobook-convert --help
 audiobook-convert inspect ./book
 audiobook-convert workspace ./book
+audiobook-convert fix-tag-encoding WINDOWS-1251 ./*.mp3
 audiobook-convert track-tags .
 audiobook-convert set-track-number --dry-run .
 audiobook-convert rename-track-id --dry-run .
@@ -74,6 +76,7 @@ The entrypoint provides these stage subcommands:
 | `workspace` | `workspace.sh` | setup |
 | `clean-workspace` | `clean-workspace.sh` | cleanup |
 | `inspect` | `inspect.sh` | inspection |
+| `fix-tag-encoding` | `fix-tag-encoding.sh` | utility |
 | `track-tags` | `0-track-tags.sh` | 0 |
 | `set-track-number` | `set-track-number.sh` | utility |
 | `rename-track-id` | `1-rename-track-id.sh` | 1 |
@@ -132,6 +135,18 @@ available for read-only source inspection. No automatic pipeline is provided.
    The default workspace is a persistent sibling of the source. The complete
    source tree is copied without hard links, so subsequent changes cannot alter
    original files.
+
+1. If inspection shows legacy-encoded MP3 tags, convert every ID3 text and
+   comment frame from the known source encoding to Unicode. File globs are
+   expanded by the shell, so leave the pattern unquoted:
+
+   ```bash
+   audiobook-convert fix-tag-encoding WINDOWS-1251 ./*.mp3
+   ```
+
+   The command requires `mid3iconv` and writes Unicode ID3v2 metadata (normally
+   ID3v2.4). It preserves ASCII and incompatible values, specialized frames
+   such as lyrics and artwork descriptions, binary metadata, and audio data.
 
 1. Inspect the source track numbers and titles:
 

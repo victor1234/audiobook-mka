@@ -46,6 +46,15 @@ common::trim() {
 	printf '%s' "$value"
 }
 
+# Report whether a name is accepted as both a safe command-line charset and an
+# iconv source encoding. Stages print their own context-specific diagnostics.
+common::encoding_supported() {
+	local encoding="$1"
+
+	[[ "$encoding" =~ ^[[:alnum:]_.-]+$ ]] &&
+		iconv -f "$encoding" -t UTF-8 </dev/null >/dev/null 2>&1
+}
+
 # Read the first matching global SimpleTag from Matroska tags XML. Missing and
 # empty files have no value; malformed XML remains silent for existing callers.
 common::matroska_tag_value() {
