@@ -110,5 +110,5 @@ esac
 # shellcheck source=/dev/null
 source "$project_dir/modules/common.sh"
 # shellcheck source=/dev/null
-source "$project_dir/modules/$stage_module"
+source "$project_dir/modules/$stage_module.sh"
 stage::run "$@"

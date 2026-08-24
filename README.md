@@ -70,15 +70,15 @@ The entrypoint provides these stage subcommands:
 
 | Subcommand | Sourced module | Stage |
 | ----------------- | -------------------- | ----- |
-| `workspace` | `workspace` | setup |
-| `clean-workspace` | `clean-workspace` | cleanup |
-| `inspect` | `inspect` | inspection |
-| `track-tags` | `0-track-tags` | 0 |
-| `rename-track-id` | `1-rename-track-id` | 1 |
-| `chapters` | `2-chapters` | 2 |
-| `images` | `3-images` | 3 |
-| `audiobook-tags` | `4-audiobook-tags` | 4 |
-| `create-mka` | `5-create-mka` | 5 |
+| `workspace` | `workspace.sh` | setup |
+| `clean-workspace` | `clean-workspace.sh` | cleanup |
+| `inspect` | `inspect.sh` | inspection |
+| `track-tags` | `0-track-tags.sh` | 0 |
+| `rename-track-id` | `1-rename-track-id.sh` | 1 |
+| `chapters` | `2-chapters.sh` | 2 |
+| `images` | `3-images.sh` | 3 |
+| `audiobook-tags` | `4-audiobook-tags.sh` | 4 |
+| `create-mka` | `5-create-mka.sh` | 5 |
 
 Successful commands and help requests exit with status 0. Invalid CLI usage,
 including a missing or unknown command or option, exits with status 2 after
