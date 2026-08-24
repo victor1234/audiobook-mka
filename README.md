@@ -26,6 +26,7 @@ The audiobook stages also require these system commands:
 - `exiftool`
 - `ffmpeg` and `ffprobe`
 - `jq`
+- `mediainfo`
 - `column`
 - `mkvmerge`
 - `xmllint`
@@ -47,6 +48,7 @@ Use the `audiobook-convert` entrypoint to run any processing stage:
 
 ```bash
 audiobook-convert --help
+audiobook-convert inspect ./book
 audiobook-convert workspace ./book
 audiobook-convert track-tags .
 audiobook-convert rename-track-id --dry-run .
@@ -70,6 +72,7 @@ The entrypoint provides these stage subcommands:
 | ----------------- | -------------------- | ----- |
 | `workspace` | `workspace` | setup |
 | `clean-workspace` | `clean-workspace` | cleanup |
+| `inspect` | `inspect` | inspection |
 | `track-tags` | `0-track-tags` | 0 |
 | `rename-track-id` | `1-rename-track-id` | 1 |
 | `chapters` | `2-chapters` | 2 |
@@ -85,7 +88,24 @@ The additional `show-tags` utility is available as `audiobook-convert show-tags`
 
 ## Workflow
 
-First copy the original audiobook into an isolated workspace. Modifying stages
+First inspect the original audiobook to understand its nested structure,
+metadata, media properties, artwork, and any problems that could affect the
+conversion workflow:
+
+```bash
+audiobook-convert inspect ./book
+```
+
+The audio tree includes each file's metadata tag format/version. The report
+also lists external JPEG, PNG, and WebP images separately with their dimensions
+and size; unrelated files remain under `Other files`.
+
+Inspection is read-only and does not require a workspace. It exits successfully
+when it finds only advisory warnings and fails when it finds an issue that
+blocks a current conversion stage, such as unreadable media or required missing
+track metadata.
+
+Then copy the original audiobook into an isolated workspace. Modifying stages
 refuse to run outside a workspace, while `track-tags` and `show-tags` remain
 available for read-only source inspection. No automatic pipeline is provided.
 
